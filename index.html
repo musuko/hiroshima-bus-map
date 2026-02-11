@@ -18,9 +18,14 @@
         const map = L.map('map').setView([34.3976, 132.4754], 13);
 
         // 2. 修正：国土地理院地図タイルのURLを正しく指定（/xyz/std/ が必要）
-        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-            attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
+        // L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+        //     attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
+        // }).addTo(map);
+
+        L.tileLayer('https://tile.openstreetmap.org{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
+
 
         // 3. テスト用のマーカー
         L.marker([34.3813, 132.4576]).addTo(map)
@@ -29,6 +34,7 @@
     </script>
 </body>
 </html>
+
 
 
 
