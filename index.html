@@ -30,7 +30,7 @@
         async function loadStopsFromZip() {
             try {
                 // 1. ZIPファイルのフェッチ
-                const response = await fetch('./hiroden/gtfs.zip');
+                const response = await fetch('./hiroden/current_data.zip');
                 if (!response.ok) throw new Error("ZIPファイルが見つかりません");
                 
                 const blob = await response.blob();
@@ -74,4 +74,5 @@
     </script>
 </body>
 </html>
+
 
