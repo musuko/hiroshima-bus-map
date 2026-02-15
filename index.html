@@ -10,6 +10,8 @@
     <!-- 修正：Leafletのライブラリ（CSSとJS）のURLを正しく指定 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/pbf@3.2.1/dist/pbf.min.js"></script>
+    <script src="https://unpkg.com/gtfs-realtime-pbf@1.0.0/gtfs-realtime-pbf.min.js"></script>
     <style>
         #map { height: 100vh; width: 100%; }
         body { margin: 0; padding: 0; }
@@ -77,9 +79,49 @@
         window.addEventListener('load', () => {
             loadStopsFromZip();
         });
+        let busMarkers = {}; // バスIDをキーにしてマーカーを管理
+
+        async function updateBusPositions() {
+            // 広島県バス協会のリアルタイムデータURL（車両位置）
+            // 直接叩けない場合は corsproxy.io 等を経由させます
+            const proxyUrl = "https://corsproxy.io?";
+            const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
+        
+            try {
+                const response = await fetch(proxyUrl + encodeURIComponent(realTimeUrl));
+                const buffer = await response.arrayBuffer();
+                const pbf = new Pbf(new Uint8Array(buffer));
+                const feed = GtfsRealtimeBindings.decode(pbf);
+        
+                feed.entity.forEach(entity => {
+                    if (entity.vehicle) {
+                        const pos = entity.vehicle.position;
+                        const vehicleId = entity.vehicle.vehicle.id;
+        
+                        // すでにマーカーがあれば移動、なければ新規作成
+                        if (busMarkers[vehicleId]) {
+                            busMarkers[vehicleId].setLatLng([pos.latitude, pos.longitude]);
+                        } else {
+                            busMarkers[vehicleId] = L.marker([pos.latitude, pos.longitude], {
+                                icon: L.divIcon({className: 'bus-icon', html: '🚌', iconSize: [25, 25]})
+                            }).addTo(map).bindPopup(`車両ID: ${vehicleId}`);
+                        }
+                    }
+                });
+                console.log("バス位置更新完了");
+            } catch (error) {
+                console.error("リアルタイムデータの取得に失敗:", error);
+            }
+        }
+        
+        // 15秒ごとに実行
+        setInterval(updateBusPositions, 15000);
+        // 初回実行
+        updateBusPositions();
     </script>
 </body>
 </html>
+
 
 
 
