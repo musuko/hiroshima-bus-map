@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>広島バスリアルタイムマップ</title>
+    <!-- ZIP解凍用 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- CSV解析用 (これが Papa オブジェクトを作ります) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
     <!-- 修正：Leafletのライブラリ（CSSとJS）のURLを正しく指定 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- ZIP解凍用とCSV解析用のライブラリを追加 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
     <style>
         #map { height: 100vh; width: 100%; }
         body { margin: 0; padding: 0; }
@@ -70,9 +71,13 @@
         }
 
         // 実行
-        loadStopsFromZip();
+                // 修正前： loadStopsFromZip();
+        
+        // 修正後： ページの読み込み完了を待ってから実行
+        window.addEventListener('load', () => {
+            loadStopsFromZip();
+        });
     </script>
 </body>
 </html>
-
 
