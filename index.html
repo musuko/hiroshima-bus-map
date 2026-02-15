@@ -98,15 +98,10 @@
                 
                 const json = await response.json();
                 // allOriginsはBase64でデータを返すため、デコードが必要
-                const base64Data = json.contents.includes(',') ? json.contents.split(',')[1] :
-                json.contents;
+                const base64Data = json.contents.includes(',') ? json.contents.split(',').pop() : json.contents;
                 const binaryString = atob(base64Data);
                 const bytes = new Uint8Array(binaryString.length);
-
-                // --- (1) データの取得とバイナリ変換が完了した後 ---
-                const pbf = new Pbf(bytes);
-                const feed = GtfsRealtimeBindings.decode(pbf);
-                
+            
                 for (let i = 0; i < binaryString.length; i++)  {
                     bytes[i] = binaryString.charCodeAt(i);
                 }
@@ -120,9 +115,9 @@
                         if (busMarkers[vId]) {
                             busMarkers[vId].setLatLng([pos.latitude, pos.longitude]);
                         } else {
-                            busMarkers[vId] = L.marker([pos.latitude, pos.longitude], { icon: L.divIcon({ html: 
-                                '🚌', iconSize: [25, 25] }) }).addTo(map).bindPopup("車両ID: " + vId);
-                            }).addTo(map).bindPopup(`車両ID: ${vehicleId}`);
+                            busMarkers[vId] = L.marker([pos.latitude, pos.longitude], {
+                                icon: L.divIcon({ html: '🚌', iconSize: [25, 25] })
+                            }).addTo(map).bindPopup("車両ID: " + vId);
                         }
                     }
                 });
@@ -139,10 +134,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
