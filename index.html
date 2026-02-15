@@ -97,6 +97,10 @@
                 if (!response.ok) throw new Error("ネットワークエラー");
                 
                 const json = await response.json();
+
+                // 【追加1】プロキシから届いた生データを確認
+                console.log("Raw JSON contents:", json.contents ? "データあり" : "データ空");
+                
                 // allOriginsはBase64でデータを返すため、デコードが必要
                 const base64Data = json.contents.includes(',') ? json.contents.split(',').pop() : json.contents;
                 const binaryString = atob(base64Data);
@@ -134,3 +138,4 @@
     </script>
 </body>
 </html>
+
