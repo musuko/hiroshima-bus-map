@@ -82,23 +82,30 @@
         let busMarkers = {}; // バスIDをキーにしてマーカーを管理
 
         async function updateBusPositions() {
+            // PbfやGtfsRealtimeBindingsが読み込まれるまで待機
+            if (typeof Pbf === 'undefined' || typeof GtfsRealtimeBindings === 'undefined') {
+                console.log("リアルタイム用ライブラリを待機中...");
+                return;
+            }
             // 広島県バス協会のリアルタイムデータURL（車両位置）
             // 直接叩けない場合は corsproxy.io 等を経由させます
-            const proxyUrl = "https://corsproxy.io?";
+            const proxyUrl = `https://api.allorigins.win{encodeURIComponent(realTimeUrl)}`;
             const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
         
             try {
-                const response = await fetch(proxyUrl + encodeURIComponent(realTimeUrl));
-                const buffer = await response.arrayBuffer();
-                const pbf = new Pbf(new Uint8Array(buffer));
-                const feed = GtfsRealtimeBindings.decode(pbf);
-        
-                feed.entity.forEach(entity => {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error("ネットワークエラー");
+                
+                const json = await response.json();
+                // allOriginsはBase64でデータを返すため、デコードが必要
+                const base64Data = json.contents.split(',')[1] || json.contents;
+                const binaryString = atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i  {
                     if (entity.vehicle) {
                         const pos = entity.vehicle.position;
                         const vehicleId = entity.vehicle.vehicle.id;
         
-                        // すでにマーカーがあれば移動、なければ新規作成
                         if (busMarkers[vehicleId]) {
                             busMarkers[vehicleId].setLatLng([pos.latitude, pos.longitude]);
                         } else {
@@ -108,7 +115,7 @@
                         }
                     }
                 });
-                console.log("バス位置更新完了");
+                console.log("バス位置を更新しました");
             } catch (error) {
                 console.error("リアルタイムデータの取得に失敗:", error);
             }
@@ -121,6 +128,7 @@
     </script>
 </body>
 </html>
+
 
 
 
