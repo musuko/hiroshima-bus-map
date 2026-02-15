@@ -6,6 +6,9 @@
     <!-- 修正：Leafletのライブラリ（CSSとJS）のURLを正しく指定 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- ZIP解凍用とCSV解析用のライブラリを追加 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
     <style>
         #map { height: 100vh; width: 100%; }
         body { margin: 0; padding: 0; }
@@ -22,16 +25,53 @@
             attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
         }).addTo(map);
 
-        // 2. 地図タイルの表示（ここに / を入れました）
-        // L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        //     attribution: '&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors'
-        // }).addTo(map);
 
+        // GTFS(ZIP)を読み込んでバス停を表示する関数
+        async function loadStopsFromZip() {
+            try {
+                // 1. ZIPファイルのフェッチ
+                const response = await fetch('./hiroden/gtfs.zip');
+                if (!response.ok) throw new Error("ZIPファイルが見つかりません");
+                
+                const blob = await response.blob();
+                
+                // 2. JSZipで解凍
+                const zip = await JSZip.loadAsync(blob);
+                const stopsText = await zip.file("stops.txt").async("string");
 
-        // 3. テスト用のマーカー
-        L.marker([34.3813, 132.4576]).addTo(map)
-            .bindPopup('ここに広電バスを表示します！')
-            .openPopup();
+                // 3. PapaParseでCSVをJSONに変換
+                Papa.parse(stopsText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const stops = results.data;
+                        
+                        // 4. 各バス停を地図に表示
+                        stops.forEach(stop => {
+                            if (stop.stop_lat && stop.stop_lon) {
+                                L.circleMarker([stop.stop_lat, stop.stop_lon], {
+                                    radius: 5,
+                                    fillColor: "#ff7800",
+                                    color: "#000",
+                                    weight: 1,
+                                    opacity: 1,
+                                    fillOpacity: 0.8
+                                })
+                                .addTo(map)
+                                .bindPopup(`<b>${stop.stop_name}</b>`);
+                            }
+                        });
+                        console.log(`${stops.length} 件のバス停を表示しました`);
+                    }
+                });
+            } catch (error) {
+                console.error("エラーが発生しました:", error);
+            }
+        }
+
+        // 実行
+        loadStopsFromZip();
     </script>
 </body>
 </html>
+
