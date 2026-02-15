@@ -89,8 +89,8 @@
             }
             // 広島県バス協会のリアルタイムデータURL（車両位置）
             // 直接叩けない場合は corsproxy.io 等を経由させます
-            const proxyUrl = `https://api.allorigins.win{encodeURIComponent(realTimeUrl)}`;
             const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(realTimeUrl)}`;
         
             try {
                 const response = await fetch(proxyUrl);
@@ -98,19 +98,30 @@
                 
                 const json = await response.json();
                 // allOriginsはBase64でデータを返すため、デコードが必要
-                const base64Data = json.contents.split(',')[1] || json.contents;
+                const base64Data = json.contents.includes(',') ? json.contents.split(',')[1] :
+                json.contents;
                 const binaryString = atob(base64Data);
                 const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i  {
-                    if (entity.vehicle) {
+
+                // --- (1) データの取得とバイナリ変換が完了した後 ---
+                const pbf = new Pbf(bytes);
+                const feed = GtfsRealtimeBindings.decode(pbf);
+                
+                for (let i = 0; i < binaryString.length; i++)  {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const pbf = new Pbf(bytes);
+                const feed = GtfsRealtimeBindings.decode(pbf);
+                feed.entity.forEach(entity => {
+                    if (entity.vehicle && entity.vehicle.position) {
                         const pos = entity.vehicle.position;
-                        const vehicleId = entity.vehicle.vehicle.id;
+                        const vId = entity.vehicle.vehicle.id;
         
-                        if (busMarkers[vehicleId]) {
-                            busMarkers[vehicleId].setLatLng([pos.latitude, pos.longitude]);
+                        if (busMarkers[vId]) {
+                            busMarkers[vId].setLatLng([pos.latitude, pos.longitude]);
                         } else {
-                            busMarkers[vehicleId] = L.marker([pos.latitude, pos.longitude], {
-                                icon: L.divIcon({className: 'bus-icon', html: '🚌', iconSize: [25, 25]})
+                            busMarkers[vId] = L.marker([pos.latitude, pos.longitude], { icon: L.divIcon({ html: 
+                                '🚌', iconSize: [25, 25] }) }).addTo(map).bindPopup("車両ID: " + vId);
                             }).addTo(map).bindPopup(`車両ID: ${vehicleId}`);
                         }
                     }
@@ -128,6 +139,7 @@
     </script>
 </body>
 </html>
+
 
 
 
