@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pbf@3.2.1/dist/pbf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gtfs-realtime-bindings@1.1.1/dist/gtfs-realtime.browser.min.js"></script>
     <style>
         #map { height: 100vh; width: 100%; }
         body { margin: 0; padding: 0; }
@@ -72,10 +72,6 @@
             }
         }
 
-        // 実行
-                // 修正前： loadStopsFromZip();
-        
-        // 修正後： ページの読み込み完了を待ってから実行
         window.addEventListener('load', () => {
             loadStopsFromZip();
         });
@@ -83,12 +79,11 @@
 
         async function updateBusPositions() {
             // PbfやGtfsRealtimeBindingsが読み込まれるまで待機
-            if (typeof Pbf === 'undefined' || typeof GtfsRealtimeBindings === 'undefined') {
-                console.log("リアルタイム用ライブラリを待機中...");
-                return;
-            }
+
             // 広島県バス協会のリアルタイムデータURL（車両位置）
             // 直接叩けない場合は corsproxy.io 等を経由させます
+            // ライブラリの確認（ブラウザ版は gtfsRealtime に格納されることが多いです）
+            const RT = window['gtfs-realtime-bindings'] || window.GtfsRealtimeBindings;
             const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(realTimeUrl)}`;
         
@@ -109,35 +104,47 @@
                 for (let i = 0; i < binaryString.length; i++)  {
                     bytes[i] = binaryString.charCodeAt(i);
                 }
+                // PbfとFeedMessageを使用してデコード
                 const pbf = new Pbf(bytes);
-                const feed = GtfsRealtimeBindings.decode(pbf);
+                // ライブラリの構造に合わせてデコード（transit_realtime.FeedMessage）
+                const feed = transit_realtime.FeedMessage.read(pbf);
                 feed.entity.forEach(entity => {
                     if (entity.vehicle && entity.vehicle.position) {
                         const pos = entity.vehicle.position;
                         const vId = entity.vehicle.vehicle.id;
-        
+                        const lat = pos.latitude;
+                        const lon = pos.longitude;        
                         if (busMarkers[vId]) {
-                            busMarkers[vId].setLatLng([pos.latitude, pos.longitude]);
+                            busMarkers[vId].setLatLng([pos.lat, pos.lon]);
                         } else {
-                            busMarkers[vId] = L.marker([pos.latitude, pos.longitude], {
-                                icon: L.divIcon({ html: '🚌', iconSize: [25, 25] })
-                            }).addTo(map).bindPopup("車両ID: " + vId);
+                            busMarkers[vId] = L.marker([lat, lon], {
+                                icon: L.divIcon({ 
+                                    html: '<div style="font-size:20px;">🚌</div>', 
+                                    className: 'bus-icon',
+                                    iconSize: [25, 25] 
+                                })
+                            }).addTo(map).bindPopup(`車両ID: ${vId}`);
                         }
                     }
                 });
-                console.log("バス位置を更新しました");
+                console.log(`${feed.entity.length} 台のバス位置を更新しました`);
             } catch (error) {
-                console.error("リアルタイムデータの取得に失敗:", error);
+                console.error("リアルタイムデータの取得または解析に失敗:", error);
             }
         }
         
-        // 60秒ごとに実行
-        setInterval(updateBusPositions, 60000);
-        // 初回実行
-        updateBusPositions();
+        // 実行のトリガー
+        window.addEventListener('load', () => {
+            loadStopsFromZip();
+            // 5秒後に初回実行（ライブラリ読み込みの安全策）
+            setTimeout(updateBusPositions, 5000);
+            // 以降1分ごと
+            setInterval(updateBusPositions, 60000);
+        });
     </script>
 </body>
 </html>
+
 
 
 
