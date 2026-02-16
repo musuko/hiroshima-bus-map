@@ -76,7 +76,9 @@
 
         async function updateBusPositions() {
         
-            const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
+            // const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
+            const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev/";
+
         
             try {
                 const response = await fetch(realTimeUrl);
@@ -137,3 +139,4 @@
     </script>
 </body>
 </html>
+
