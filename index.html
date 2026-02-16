@@ -46,16 +46,16 @@
             attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
         }).addTo(map);
 
-        map.eachControl(control => {
-            if (control instanceof L.Control.Scale) {
-                map.removeControl(control);
-            }
-        });
+        // map.eachControl(control => {
+        //     if (control instanceof L.Control.Scale) {
+        //         map.removeControl(control);
+        //     }
+        // });
 
 
-        L.control.zoom({
-            position: 'bottomright'
-        }).addTo(map);
+        // L.control.zoom({
+        //     position: 'bottomright'
+        // }).addTo(map);
 
         iconSize: [30, 30]
 
@@ -150,6 +150,7 @@
     </script>
 </body>
 </html>
+
 
 
 
