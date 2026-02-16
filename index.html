@@ -10,8 +10,6 @@
     <!-- 修正：Leafletのライブラリ（CSSとJS）のURLを正しく指定 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pbf@3.2.1/dist/pbf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gtfs-realtime-bindings@1.1.1/dist/gtfs-realtime.browser.min.js"></script>
     <style>
         #map { height: 100vh; width: 100%; }
         body { margin: 0; padding: 0; }
@@ -76,39 +74,38 @@
 
         async function updateBusPositions() {
         
-async function updateBusPositions() {
-    const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev";
-
-    try {
-        const response = await fetch(realTimeUrl);
-        const vehicles = await response.json();
-
-        vehicles.forEach((v, i) => {
-            const lat = v.lat;
-            const lon = v.lon;
-            const id = i;
-
-            if (!lat || !lon) return;
-
-            if (busMarkers[id]) {
-                busMarkers[id].setLatLng([lat, lon]);
-            } else {
-                busMarkers[id] = L.marker([lat, lon], {
-                    icon: L.divIcon({
-                        html: '<div style="font-size:18px;">🚌</div>',
-                        className: '',
-                        iconSize: [20, 20]
-                    })
-                }).addTo(map);
+        async function updateBusPositions() {
+            const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev/";
+        
+            try {
+                const response = await fetch(realTimeUrl);
+                const vehicles = await response.json();
+        
+                vehicles.forEach((v, i) => {
+                    const lat = v.lat;
+                    const lon = v.lon;
+        
+                    if (!lat || !lon) return;
+        
+                    if (busMarkers[i]) {
+                        busMarkers[i].setLatLng([lat, lon]);
+                    } else {
+                        busMarkers[i] = L.marker([lat, lon], {
+                            icon: L.divIcon({
+                                html: '<div style="font-size:18px;">🚌</div>',
+                                className: '',
+                                iconSize: [20, 20]
+                            })
+                        }).addTo(map);
+                    }
+                });
+        
+                console.log(`${vehicles.length} 台のバス更新`);
+        
+            } catch (error) {
+                console.error("リアルタイム取得失敗:", error);
             }
-        });
-
-        console.log(`${vehicles.length} 台のバス更新`);
-
-    } catch (err) {
-        console.error("バス取得失敗", err);
-    }
-}
+        }
         
         // 実行のトリガー
         window.addEventListener('load', () => {
@@ -121,3 +118,4 @@ async function updateBusPositions() {
     </script>
 </body>
 </html>
+
