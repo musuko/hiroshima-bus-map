@@ -16,25 +16,43 @@
             margin: 0;
             padding: 0;
             height: 100%;
+            overscroll-behavior: none;
         }
-        
+
         #map {
-            height: 100vh; /* スマホ対応 */
+            height: calc(100dvh - 50px); /* スマホ対応 */
             width: 100vw;
+        }
+        .header {
+            height: 50px;
+            background: white;
+            text-align: center;
+            line-height: 50px;
+            font-weight: bold;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body>
+    <div class="header">広島バスリアルタイム</div>
     <div id="map"></div>
+
     <script>
         // 1. 地図の初期化
-        const map = L.map('map').setView([34.3976, 132.4754], 13);
+        const map = L.map('map').setView([34.3976, 132.4754], 12);
 
         // 2. 修正：国土地理院地図タイルのURLを正しく指定（/xyz/std/ が必要）
         L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
             attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
         }).addTo(map);
 
+        L.control.zoom({
+            position: 'bottomright'
+        }).addTo(map);
+
+        iconSize: [30, 30]
+
+        
 
         // GTFS(ZIP)を読み込んでバス停を表示する関数
         async function loadStopsFromZip() {
@@ -125,6 +143,7 @@
     </script>
 </body>
 </html>
+
 
 
 
