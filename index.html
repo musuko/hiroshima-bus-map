@@ -143,13 +143,14 @@
         window.addEventListener('load', () => {
             loadStopsFromZip();
             // 5秒後に初回実行（ライブラリ読み込みの安全策）
-            setTimeout(updateBusPositions, 5000);
+            setTimeout(updateBusPositions, 1000);
             // 以降1分ごと
             setInterval(updateBusPositions, 60000);
         });
     </script>
 </body>
 </html>
+
 
 
 
