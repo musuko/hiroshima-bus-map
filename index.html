@@ -40,22 +40,18 @@
     <script>
         // 1. 地図の初期化
         const map = L.map('map').setView([34.3976, 132.4754], 12);
-
-        // 追加時に変数で保持しておく
-        const scale = L.control.scale().addTo(map);
         
-        // 後から位置変更
-        map.removeControl(scale);
-        
+        // scaleは1回だけ
         L.control.scale({
-          position: "bottomright"
+          position: "bottomright",
+          imperial: false
         }).addTo(map);
-
-
-        // 2. 修正：国土地理院地図タイルのURLを正しく指定（/xyz/std/ が必要）
+        
+        // 背景
         L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-            attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
+          attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
         }).addTo(map);
+
 
 
         // GTFS(ZIP)を読み込んでバス停を表示する関数
@@ -147,6 +143,7 @@
     </script>
 </body>
 </html>
+
 
 
 
