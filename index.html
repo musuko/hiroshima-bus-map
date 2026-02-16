@@ -83,18 +83,18 @@
                         
                         // 4. 各バス停を地図に表示
                         stops.forEach(stop => {
-                            // if (stop.stop_lat && stop.stop_lon) {
-                            //     L.circleMarker([stop.stop_lat, stop.stop_lon], {
-                            //         radius: 5,
-                            //         fillColor: "#ff7800",
-                            //         color: "#000",
-                            //         weight: 1,
-                            //         opacity: 1,
-                            //         fillOpacity: 0.8
-                            //     })
-                            //     .addTo(map)
-                            //     .bindPopup(`<b>${stop.stop_name}</b>`);
-                            // }
+                            if (stop.stop_lat && stop.stop_lon) {
+                                L.circleMarker([stop.stop_lat, stop.stop_lon], {
+                                    radius: 5,
+                                    fillColor: "#ff7800",
+                                    color: "#000",
+                                    weight: 1,
+                                    opacity: 1,
+                                    fillOpacity: 0.8
+                                })
+                                .addTo(map)
+                                .bindPopup(`<b>${stop.stop_name}</b>`);
+                            }
                         });
                         console.log(`${stops.length} 件のバス停を表示しました`);
                     }
@@ -150,6 +150,7 @@
     </script>
 </body>
 </html>
+
 
 
 
