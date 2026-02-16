@@ -41,19 +41,16 @@
         // 1. 地図の初期化
         const map = L.map('map').setView([34.3976, 132.4754], 12);
 
-        // 既存スケール削除（安全策）
-        map.eachControl(control => {
-            if (control instanceof L.Control.Scale) {
-                map.removeControl(control);
-            }
-        });
+        // 追加時に変数で保持しておく
+        const scale = L.control.scale().addTo(map);
         
-        // 右下にスケール追加
+        // 後から位置変更
+        map.removeControl(scale);
+        
         L.control.scale({
-            position: 'bottomright',
-            metric: true,
-            imperial: false
+          position: "bottomright"
         }).addTo(map);
+
 
         // 2. 修正：国土地理院地図タイルのURLを正しく指定（/xyz/std/ が必要）
         L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
@@ -150,6 +147,7 @@
     </script>
 </body>
 </html>
+
 
 
 
