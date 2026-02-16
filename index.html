@@ -76,57 +76,39 @@
 
         async function updateBusPositions() {
         
-            // const realTimeUrl = "https://ajt-mobusta-gtfs.mcapps.jp/realtime/8/vehicle_position.bin";
-            const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev/";
+async function updateBusPositions() {
+    const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev";
 
-        
-            try {
-                const response = await fetch(realTimeUrl);
-                if (!response.ok) throw new Error("ネットワークエラー");
-        
-                const buffer = await response.arrayBuffer();
-                const bytes = new Uint8Array(buffer);
-        
-                const GTFS = window['gtfs-realtime-bindings'] || window.gtfsRealtimeBindings;
-        
-                if (!GTFS || !GTFS.transit_realtime) {
-                    console.error("GTFS Realtime ライブラリ未読込");
-                    return;
-                }
-        
-                const feed = GTFS.transit_realtime.FeedMessage.decode(bytes);
-        
-                feed.entity.forEach(entity => {
-                    if (entity.vehicle && entity.vehicle.position) {
-        
-                        const pos = entity.vehicle.position;
-                        const vId = entity.vehicle.vehicle?.id || entity.id;
-                        const lat = pos.latitude;
-                        const lon = pos.longitude;
-        
-                        if (!lat || !lon) return;
-        
-                        if (busMarkers[vId]) {
-                            busMarkers[vId].setLatLng([lat, lon]);
-                        } else {
-                            busMarkers[vId] = L.marker([lat, lon], {
-                                icon: L.divIcon({
-                                    html: '<div style="font-size:20px;">🚌</div>',
-                                    className: '',
-                                    iconSize: [25, 25]
-                                })
-                            }).addTo(map)
-                              .bindPopup(`車両ID: ${vId}`);
-                        }
-                    }
-                });
-        
-                console.log(`${feed.entity.length} 台のバス位置を更新`);
-        
-            } catch (error) {
-                console.error("リアルタイム取得失敗:", error);
+    try {
+        const response = await fetch(realTimeUrl);
+        const vehicles = await response.json();
+
+        vehicles.forEach((v, i) => {
+            const lat = v.lat;
+            const lon = v.lon;
+            const id = i;
+
+            if (!lat || !lon) return;
+
+            if (busMarkers[id]) {
+                busMarkers[id].setLatLng([lat, lon]);
+            } else {
+                busMarkers[id] = L.marker([lat, lon], {
+                    icon: L.divIcon({
+                        html: '<div style="font-size:18px;">🚌</div>',
+                        className: '',
+                        iconSize: [20, 20]
+                    })
+                }).addTo(map);
             }
-        }
+        });
+
+        console.log(`${vehicles.length} 台のバス更新`);
+
+    } catch (err) {
+        console.error("バス取得失敗", err);
+    }
+}
         
         // 実行のトリガー
         window.addEventListener('load', () => {
@@ -139,4 +121,3 @@
     </script>
 </body>
 </html>
-
