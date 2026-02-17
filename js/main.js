@@ -6,4 +6,6 @@ window.addEventListener('load', () => {
 
     // 定期更新
     setInterval(updateBusPositions, 15000);
+
+     startGeolocation(); // ← これ追加
 });
