@@ -107,32 +107,44 @@
             const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev/";
         
             try {
-                const response = await fetch(realTimeUrl);
+                const response = await fetch(realTimeUrl, { cache: "no-store" });
                 const vehicles = await response.json();
-                // バスアイコン画像
+        
                 const busIcon = L.icon({
                     iconUrl: './busimg/green.png',
-                    iconSize: [24, 24],   // 画像サイズに合わせて調整
-                    iconAnchor: [12, 12], // マーカーの中心位置
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12],
                 });
         
-                vehicles.forEach((v, i) => {
+                const activeIds = new Set();
+        
+                vehicles.forEach(v => {
                     const lat = v.lat;
                     const lon = v.lon;
+                    const id = v.id || v.vehicle_id;
         
-                    if (!lat || !lon) return;
+                    if (!lat || !lon || !id) return;
         
-                    if (busMarkers[i]) {
-                        busMarkers[i].setLatLng([lat, lon]);
+                    activeIds.add(id);
+        
+                    if (busMarkers[id]) {
+                        busMarkers[id].setLatLng([lat, lon]);
                     } else {
-                       busMarkers[i] = L.marker([lat, lon], {
+                        busMarkers[id] = L.marker([lat, lon], {
                             icon: busIcon
                         }).addTo(map);
                     }
                 });
         
-                console.log(`${vehicles.length} 台のバス更新`);
+                // 消えた車両を削除
+                Object.keys(busMarkers).forEach(id => {
+                    if (!activeIds.has(id)) {
+                        map.removeLayer(busMarkers[id]);
+                        delete busMarkers[id];
+                    }
+                });
         
+                console.log(`${vehicles.length} 台更新`);
             } catch (error) {
                 console.error("リアルタイム取得失敗:", error);
             }
@@ -142,11 +154,10 @@
         window.addEventListener('load', () => {
             loadStopsFromZip();
             // 5秒後に初回実行（ライブラリ読み込みの安全策）
-            setTimeout(updateBusPositions, 1000);
+            setTimeout(updateBusPositions, 5000);
             // 以降1分ごと
             setInterval(updateBusPositions, 60000);
         });
     </script>
 </body>
 </html>
-
