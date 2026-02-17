@@ -45,15 +45,15 @@
         // 1. 地図の初期化
         const map = L.map('map').setView([34.3976, 132.4754], 12);
         
+        // 背景
+        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+          attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
+        }).addTo(map);
+        
         // scaleは1回だけ
         L.control.scale({
           position: "bottomright",
           imperial: false
-        }).addTo(map);
-        
-        // 背景
-        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-          attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
         }).addTo(map);
 
 
@@ -161,5 +161,6 @@
     </script>
 </body>
 </html>
+
 
 
