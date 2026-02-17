@@ -109,6 +109,12 @@
             try {
                 const response = await fetch(realTimeUrl);
                 const vehicles = await response.json();
+                // バスアイコン画像
+                const busIcon = L.icon({
+                    iconUrl: './busimg/green.png',
+                    iconSize: [32, 32],   // 画像サイズに合わせて調整
+                    iconAnchor: [16, 16], // マーカーの中心位置
+                });
         
                 vehicles.forEach((v, i) => {
                     const lat = v.lat;
@@ -119,12 +125,8 @@
                     if (busMarkers[i]) {
                         busMarkers[i].setLatLng([lat, lon]);
                     } else {
-                        busMarkers[i] = L.marker([lat, lon], {
-                            icon: L.divIcon({
-                                html: '<div style="font-size:18px;">🚌</div>',
-                                className: 'bus-icon',
-                                iconSize: [30, 30]
-                            })
+                       busMarkers[i] = L.marker([lat, lon], {
+                            icon: busIcon
                         }).addTo(map);
                     }
                 });
@@ -147,18 +149,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
