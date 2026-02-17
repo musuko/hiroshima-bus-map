@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>広島バスリアルタイムマップ</title>
+    <title>バスマップ</title>
     <!-- ZIP解凍用 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- CSV解析用 (これが Papa オブジェクトを作ります) -->
@@ -11,31 +11,8 @@
     <!-- 修正：Leafletのライブラリ（CSSとJS）のURLを正しく指定 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overscroll-behavior: none;
-        }
-
-        #map {
-            height: calc(100dvh - 50px); /* スマホ対応 */
-            width: 100vw;
-        }
-        .header {
-            height: 50px;
-            background: white;
-            text-align: center;
-            line-height: 50px;
-            font-weight: bold;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
-        }
-        .leaflet-bottom.leaflet-right {
-          bottom: calc(20px + env(safe-area-inset-bottom));
-          right: 10px;
-        }
-    </style>
+    <!-- 自作CSS -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="header">広島バスリアルタイム</div>
@@ -192,6 +169,7 @@
     </script>
 </body>
 </html>
+
 
 
 
