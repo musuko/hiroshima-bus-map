@@ -1,5 +1,6 @@
 // mapをグローバル化（重要）
-window.map = L.map('map').setView([34.3976, 132.4754], 12);
+const map = L.map('map').setView([34.3976, 132.4754], 12);
+window.map = map;
 
 // 背景
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
