@@ -44,4 +44,3 @@ function startGeolocation() {
         timeout: 10000
     });
 }
-🚀 呼び出しを忘れない
