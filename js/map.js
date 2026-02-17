@@ -16,7 +16,7 @@ L.control.scale({
 // ===== 現在地表示 =====
 let userMarker = null;
 
-function startGeolocation() {
+window.startGeolocation = function () {
     if (!navigator.geolocation) {
         console.warn("このブラウザは位置情報非対応");
         return;
