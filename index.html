@@ -150,9 +150,40 @@
             }
         }
         
+        // ⭐ 現在地リアルタイム追跡
+        function startMyLocationTracking() {
+            if (!navigator.geolocation) {
+                console.warn("位置情報非対応");
+                return;
+            }
+        
+            navigator.geolocation.watchPosition(pos => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+        
+                if (!window.myMarker) {
+                    const myIcon = L.icon({
+                        iconUrl: "https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png",
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32]
+                    });
+        
+                    window.myMarker = L.marker([lat, lon], {
+                        icon: myIcon
+                    }).addTo(map).bindPopup("現在地");
+                } else {
+                    window.myMarker.setLatLng([lat, lon]);
+                }
+            }, err => {
+                console.error("位置情報エラー:", err);
+            }, {
+                enableHighAccuracy: true
+            });
+        }
         // 実行のトリガー
         window.addEventListener('load', () => {
             loadStopsFromZip();
+            startMyLocationTracking(); // ←追加
             // 5秒後に初回実行（ライブラリ読み込みの安全策）
             setTimeout(updateBusPositions, 5000);
             // 以降1分ごと
@@ -161,6 +192,7 @@
     </script>
 </body>
 </html>
+
 
 
 
