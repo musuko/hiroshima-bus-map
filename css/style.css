@@ -1,1 +1,25 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overscroll-behavior: none;
+}
 
+#map {
+    height: calc(100dvh - 50px);
+    width: 100vw;
+}
+
+.header {
+    height: 50px;
+    background: white;
+    text-align: center;
+    line-height: 50px;
+    font-weight: bold;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+}
+
+.leaflet-bottom.leaflet-right {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    right: 10px;
+}
