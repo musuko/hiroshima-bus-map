@@ -15,6 +15,7 @@ L.control.scale({
 
 // ===== 現在地表示 =====
 let userMarker = null;
+let firstFix = true;   // ← ここ重要
 
 window.startGeolocation = function () {
     if (!navigator.geolocation) {
@@ -27,15 +28,15 @@ window.startGeolocation = function () {
         const lon = pos.coords.longitude;
 
         if (!userMarker) {
-            userMarker = L.circleMarker([lat, lon], {
-                radius: 8,
-                color: "#fff",
-                weight: 2,
-                fillColor: "#007bff",
-                fillOpacity: 1
+            userMarker = L.marker([lat, lon], {
+                zIndexOffset: 10000
             }).addTo(map);
         } else {
-            userMarker.setLatLng([lat, lon]);
+            userMarker.setLatLng([lat, lon]).bringToFront();
+        }
+        if (firstFix) {
+            map.setView([lat, lon], 16);
+            firstFix = false;
         }
     }, err => {
         console.warn("位置情報エラー:", err.message);
