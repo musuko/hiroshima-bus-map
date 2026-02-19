@@ -6,4 +6,5 @@ window.addEventListener('load', () => {
     } else {
         console.error("Mapが初期化されていません");
     }
+     startGeolocation();
 });
