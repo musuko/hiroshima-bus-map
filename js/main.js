@@ -1,5 +1,5 @@
 window.addEventListener('load', () => {
-    loadStopsFromZip();
+    loadStopsFromCsv();
 
     // 初回
     setTimeout(updateBusPositions, 15000);
