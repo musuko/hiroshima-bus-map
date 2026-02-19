@@ -1,7 +1,7 @@
 const busMarkers = {};
 
 window.updateBusPositions = async function() {
-    const realTimeUrl = "https://bus.kinopy-parade-1221.workers.dev/";
+    const realTimeUrl = "https://hiroden-api.vercel.app/api/get-bus";
 
     try {
         const response = await fetch(realTimeUrl, { cache: "no-store" });
