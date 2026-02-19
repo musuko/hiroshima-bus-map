@@ -42,6 +42,7 @@ async function loadStopsFromCsv(mapInstance) {
                     weight: 2,            // 枠線の太さ
                     opacity: 1,           // 枠線の透明度
                     fillOpacity: 0.8      // 塗りつぶしの透明度
+                }
         });
 
         console.log(`成功: ${rows.length - 1}件のバス停を表示しました。`);
