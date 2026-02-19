@@ -1,11 +1,9 @@
+// ページ読み込み完了後に実行
 window.addEventListener('load', () => {
-    loadStopsFromCsv();
-
-    // 初回
-    setTimeout(updateBusPositions, 15000);
-
-    // 定期更新
-    setInterval(updateBusPositions, 15000);
-
-     startGeolocation(); // ← これ追加
+    // map.jsで定義したグローバルなmapを渡す
+    if (window.map) {
+        loadStopsFromCsv(window.map);
+    } else {
+        console.error("Mapが初期化されていません");
+    }
 });
