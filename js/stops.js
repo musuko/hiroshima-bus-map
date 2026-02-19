@@ -34,11 +34,14 @@ async function loadStopsFromCsv(mapInstance) {
             const name = columns[idxName];
 
             if (!isNaN(lat) && !isNaN(lon)) {
-                // markerをtargetMapに追加
-                L.marker([lat, lon])
-                    .addTo(targetMap)
-                    .bindPopup(name);
-            }
+                // L.marker ではなく L.circleMarker を使用
+                L.circleMarker([lat, lon], {
+                    radius: 6,           // 円の半径
+                    fillColor: "#28a745", // 緑色（広電バス風のグリーン）
+                    color: "#ffffff",     // 枠線の色（白）
+                    weight: 2,            // 枠線の太さ
+                    opacity: 1,           // 枠線の透明度
+                    fillOpacity: 0.8      // 塗りつぶしの透明度
         });
 
         console.log(`成功: ${rows.length - 1}件のバス停を表示しました。`);
