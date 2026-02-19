@@ -48,10 +48,20 @@ async function loadStopsFromCsv(mapInstance) {
                 .addTo(targetMap)
                 // 吹き出しに stop_id も表示するように変更
                 .bindPopup(`<b>${name}</b><br>ID: ${stopId}`)
-                // クリックした時にコンソールに ID を出す（デバッグ用）
-                .on('click', () => {
-                    console.log(`選択されたバス停: ${name} (ID: ${stopId})`);
-                    // ここに「時刻表を表示する関数(stopId)」を後で追加すれば連携完了！
+                // クリックした時にコンソールにtimetable
+                .on('click', async (e) => {
+                    const marker = e.target;
+                    marker.setPopupContent(`<b>${name}</b><br>読込中...`);
+                    
+                    const times = await getTimetableForStop(stopId);
+                    
+                    if (times.length > 0) {
+                        // 直近5件だけ表示する例
+                        const listHtml = times.slice(0, 5).map(t => `<li>${t.departureTime}</li>`).join('');
+                        marker.setPopupContent(`<b>${name}</b><br>時刻表(直近5件):<ul>${listHtml}</ul>`);
+                    } else {
+                        marker.setPopupContent(`<b>${name}</b><br>時刻データが見つかりません`);
+                    }
                 });
             }
         });
