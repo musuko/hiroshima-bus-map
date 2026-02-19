@@ -29,10 +29,13 @@ window.startGeolocation = function () {
 
         if (!userMarker) {
             userMarker = L.marker([lat, lon], {
-                zIndexOffset: 10000
+                zIndexOffset: 10000 // 最初から高い値に設定
             }).addTo(map);
         } else {
-            userMarker.setLatLng([lat, lon]).bringToFront();
+            // .bringToFront() を削除し、setLatLng だけにする
+            userMarker.setLatLng([lat, lon]);
+            // もし他のマーカーより確実に上にしたいなら、再度オフセットを設定（念のため）
+            // userMarker.setZIndexOffset(10000); 
         }
         if (firstFix) {
             map.setView([lat, lon], 16);
