@@ -32,6 +32,7 @@ async function loadStopsFromCsv(mapInstance) {
             const lat = parseFloat(columns[idxLat]);
             const lon = parseFloat(columns[idxLon]);
             const name = columns[idxName];
+            const stopId = columns[headers.indexOf('stop_id')]; // stop_id を取得
 
             if (!isNaN(lat) && !isNaN(lon)) {
                 // L.marker ではなく L.circleMarker を使用
@@ -44,7 +45,12 @@ async function loadStopsFromCsv(mapInstance) {
                     fillOpacity: 0.8      // 塗りつぶしの透明度
                 })
                 .addTo(targetMap)
-                .bindPopup(name);
+                // 吹き出しに stop_id も表示するように変更
+                .bindPopup(`<b>${name}</b><br>ID: ${stopId}`)
+                // クリックした時にコンソールに ID を出す（デバッグ用）
+                .on('click', () => {
+                    console.log(`選択されたバス停: ${name} (ID: ${stopId})`);
+                    // ここに「時刻表を表示する関数(stopId)」を後で追加すれば連携完了！
             }
         });
 
