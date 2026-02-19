@@ -52,7 +52,7 @@ async function loadStopsFromCsv(mapInstance) {
                 .on('click', () => {
                     console.log(`選択されたバス停: ${name} (ID: ${stopId})`);
                     // ここに「時刻表を表示する関数(stopId)」を後で追加すれば連携完了！
-                }
+                });
             }
         });
 
