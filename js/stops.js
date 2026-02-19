@@ -37,12 +37,13 @@ async function loadStopsFromCsv(mapInstance) {
             if (!isNaN(lat) && !isNaN(lon)) {
                 // L.marker ではなく L.circleMarker を使用
                 L.circleMarker([lat, lon], {
-                    radius: 6,           // 円の半径
+                    radius: 8,           // 円の半径
                     fillColor: "#28a745", // 緑色（広電バス風のグリーン）
                     color: "#ffffff",     // 枠線の色（白）
-                    weight: 2,            // 枠線の太さ
-                    opacity: 1,           // 枠線の透明度
-                    fillOpacity: 0.8      // 塗りつぶしの透明度
+                    // --- ここからが判定を広げる設定 ---
+                    color: "transparent", // 枠線を透明にする（または "rgba(0,0,0,0)"）
+                    weight: 20,           // 枠線の太さを20pxにする。これが「クリック判定」の広さになります
+                    stroke: true,         // 枠線自体は有効にする
                 })
                 .addTo(targetMap)
                 // 吹き出しに stop_id も表示するように変更
