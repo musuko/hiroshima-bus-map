@@ -1,10 +1,15 @@
-// mapをグローバル化（重要）
-const map = L.map('map').setView([34.3976, 132.4754], 12);
+// mapをグローバル化（重要）、maxZoom を追加
+const map = L.map('map',{
+  maxZoom: 21 // 地図として許容する最大ズーム
+}).setView([34.3976, 132.4754], 12);
 window.map = map;
 
 // 背景
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-  attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>"
+  attribution: "<a href='https://maps.gsi.go.jp' target='_blank'>地理院タイル</a>",
+  minZoom: 2,
+  maxZoom: 21,      // 21段階まで拡大操作を許可する
+  maxNativeZoom: 18 // 地理院タイル自体の画像があるのは18までなので、それ以降は引き伸ばして表示
 }).addTo(map);
 
 // スケール
