@@ -51,16 +51,22 @@ async function loadStopsFromCsv(mapInstance) {
                 // クリックした時にコンソールにtimetable
                 .on('click', async (e) => {
                     const marker = e.target;
-                    marker.setPopupContent(`<b>${name}</b><br>読込中...`);
+                    // 読み込み中であることを表示
+                    marker.setPopupContent(`<b>${name}</b><br><div style="text-align:center;">⌛ 時刻表を検索中...</div>`);
                     
                     const times = await getTimetableForStop(stopId);
                     
                     if (times.length > 0) {
-                        // 直近5件だけ表示する例
-                        const listHtml = times.slice(0, 5).map(t => `<li>${t.departureTime}</li>`).join('');
-                        marker.setPopupContent(`<b>${name}</b><br>時刻表(直近5件):<ul>${listHtml}</ul>`);
+                        // 直近3件〜5件程度を表示
+                        const nextBuses = times.slice(0, 5).map(t => `<li><b>${t.substring(0, 5)}</b></li>`).join('');
+                        marker.setPopupContent(`
+                            <b>${name}</b><br>
+                            <small>ID: ${stopId}</small><hr>
+                            これからの出発予定:
+                            <ul style="margin:5px 0; padding-left:20px;">${nextBuses}</ul>
+                        `);
                     } else {
-                        marker.setPopupContent(`<b>${name}</b><br>時刻データが見つかりません`);
+                        marker.setPopupContent(`<b>${name}</b><br><small>ID: ${stopId}</small><hr>本日の運行は終了、またはデータがありません。`);
                     }
                 });
             }
