@@ -39,7 +39,7 @@ async function loadStopsFromCsv(mapInstance) {
                 L.circleMarker([lat, lon], {
                     radius: 8,           // 円の半径
                     fillColor: "#28a745", // 緑色（広電バス風のグリーン）
-                    color: "#ffffff",     // 枠線の色（白）
+                    fillOpacity: 0.8,
                     // --- ここからが判定を広げる設定 ---
                     color: "transparent", // 枠線を透明にする（または "rgba(0,0,0,0)"）
                     weight: 20,           // 枠線の太さを20pxにする。これが「クリック判定」の広さになります
