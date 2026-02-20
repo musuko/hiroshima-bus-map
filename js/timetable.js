@@ -34,14 +34,15 @@ async function prepareGtfsData() {
 // ページ読み込み時に一度だけ実行
 prepareGtfsData();
 
+// js/timetable.js (修正版)
+
 async function getTimetableForStop(stopId) {
-    const csvPath = './hiroden/stop_times.csv';
+    const txtPath = './hiroden/stop_times.txt'; // txtに変更
     const now = new Date();
-    // 現在時刻を "HH:MM:SS" 形式に（比較用）
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
     try {
-        const response = await fetch(csvPath);
+        const response = await fetch(txtPath);
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         
@@ -54,27 +55,35 @@ async function getTimetableForStop(stopId) {
 
             partialData += decoder.decode(value, { stream: true });
             const lines = partialData.split(/\r?\n/);
-            partialData = lines.pop(); // 途切れた最終行を次回へ
+            partialData = lines.pop();
 
             for (const line of lines) {
-                // 高速化のため、行に stopId が含まれている場合のみ詳しく解析
                 if (line.includes(stopId)) {
                     const columns = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
                     
-                    // stop_id（3番目の列）が完全一致するか確認
                     if (columns[3] === stopId) {
+                        const tripId = columns[0]; // trip_id
                         const depTime = columns[2]; // departure_time
-                        // 今日これからの便だけを抽出（オプション）
+                        
                         if (depTime >= currentTimeStr) {
-                            timetable.push(depTime);
+                            // 辞書から情報を引く
+                            const tripInfo = tripLookup[tripId] || {};
+                            const routeNo = routeLookup[tripInfo.routeId] || "";
+                            const headsign = tripInfo.headsign || "不明";
+
+                            timetable.push({
+                                time: depTime,
+                                routeNo: routeNo,
+                                headsign: headsign
+                            });
                         }
                     }
                 }
             }
         }
 
-        // 時刻順に並び替えて重複を除去
-        return [...new Set(timetable)].sort();
+        // 時刻順に並び替え（オブジェクトなので sort の書き方が少し変わります）
+        return timetable.sort((a, b) => a.time.localeCompare(b.time));
 
     } catch (error) {
         console.error('時刻表読込エラー:', error);
