@@ -18,6 +18,7 @@ window.updateBusPositions = async function() {
             iconUrl: './busimg/green.png',
             iconSize: [40, 40],
             iconAnchor: [20, 20],
+            popupAnchor: [0, -20]
         });
 
         const activeIds = new Set();
@@ -39,7 +40,7 @@ window.updateBusPositions = async function() {
             if (busMarkers[id]) {
                 busMarkers[id].setLatLng([lat, lon]);
             } else {
-                console.log(`新規バス追加: ID=${id} at [${lat}, ${lon}]`);
+                // console.log(`新規バス追加: ID=${id} at [${lat}, ${lon}]`);
                 busMarkers[id] = L.marker([lat, lon], {
                     icon: busIcon,
                     zIndexOffset: 1000 // バス停より上に表示
