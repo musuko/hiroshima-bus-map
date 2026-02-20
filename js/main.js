@@ -7,7 +7,7 @@ window.addEventListener('load', () => {
 
     // 2. 地図が存在すればバス停を読み込む
     if (window.map) {
-        loadStopsFromCsv(window.map);
+        loadStopsFromTxt(window.map);
     } else {
         console.error("Mapが初期化されていません");
     }
