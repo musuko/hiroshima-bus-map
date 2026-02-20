@@ -53,16 +53,26 @@ async function loadStopsFromTxt(mapInstance) { // 関数名も実態に合わせ
                     const marker = e.target;
                     marker.setPopupContent(`<b>${name}</b><br><div style="text-align:center;">⌛ 時刻表を検索中...</div>`);
                     
-                    // 時刻表取得（昨日のロジック）
+                    // 新しくなった getTimetableForStop を呼び出し
                     const times = await getTimetableForStop(stopId);
                     
                     if (times.length > 0) {
-                        const nextBuses = times.slice(0, 5).map(t => `<li><b>${t.substring(0, 5)}</b></li>`).join('');
+                        // オブジェクトの配列 [ {time, routeNo, headsign}, ... ] を HTML に変換
+                        const nextBuses = times.slice(0, 5).map(t => {
+                            // 路線番号があればバッジ風に表示
+                            const routeBadge = t.routeNo 
+                                ? `<span style="background:#28a745; color:white; padding:1px 4px; border-radius:3px; font-size:0.85em; margin-right:4px;">${t.routeNo}</span>` 
+                                : "";
+                            
+                            // 時刻(HH:MM) + 路線バッジ + 行先
+                            return `<li style="margin-bottom:4px;"><b>${t.time.substring(0, 5)}</b> ${routeBadge}${t.headsign} 行</li>`;
+                        }).join('');
+
                         marker.setPopupContent(`
                             <b>${name}</b><br>
-                            <small>ID: ${stopId}</small><hr>
+                            <small style="color:#666;">ID: ${stopId}</small><hr style="margin:8px 0;">
                             これからの出発予定:
-                            <ul style="margin:5px 0; padding-left:20px;">${nextBuses}</ul>
+                            <ul style="margin:8px 0; padding-left:0; list-style:none;">${nextBuses}</ul>
                         `);
                     } else {
                         marker.setPopupContent(`<b>${name}</b><br><small>ID: ${stopId}</small><hr>本日の運行は終了、またはデータがありません。`);
