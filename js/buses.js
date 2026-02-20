@@ -23,8 +23,9 @@ window.updateBusPositions = async function() {
             const vehicle = item.vehicle;
             if (!vehicle || !vehicle.position) return;
 
-            const lat = vehicle.position.latitude;
-            const lon = vehicle.position.longitude;
+            // 取得したデータ構造に合わせる
+            const lat = parseFloat(vehicle.position.latitude);
+            const lon = parseFloat(vehicle.position.longitude);
             const id = vehicle.vehicle.id; // 車両ID
 
             if (!lat || !lon || !id) return;
