@@ -10,7 +10,7 @@ async function loadStopsFromTxt(mapInstance) { // 関数名も実態に合わせ
     }
 
     // パスを .txt に変更
-    const txtPath = './hiroden/stops.txt';
+    const txtPath = './info/hiroden/stops.txt';
 
     try {
         const response = await fetch(txtPath);
