@@ -58,11 +58,9 @@ async function loadStopsFromTxt(mapInstance) { // 関数名も実態に合わせ
                     
                     if (times.length > 0) {
                         // オブジェクトの配列 [ {time, routeNo, headsign}, ... ] を HTML に変換
-                            // 路線番号があればバッジ風に表示
-                        const nextBuses = times.slice(0, 5).map(t => {
-                            // 路線名(long_name)が長いので適宜調整
-                            return `<li><b>${t.time.substring(0, 5)}</b> [${t.routeNo}] ${t.headsign}</li>`;
-                        }).join('');
+                        const nextBuses = times.slice(0, 5).map(t => 
+                            `<li><b>${t.time.substring(0, 5)}</b> [${t.routeNo}] ${t.name || t.headsign}</li>`
+                        ).join('');
 
                         marker.setPopupContent(`
                             <b>${name}</b><br>
