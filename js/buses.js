@@ -39,6 +39,7 @@ window.updateBusPositions = async function() {
 
             if (busMarkers[id]) {
                 busMarkers[id].setLatLng([lat, lon]);
+                busMarkers[id].setIcon(busIcon);
             } else {
                 // console.log(`新規バス追加: ID=${id} at [${lat}, ${lon}]`);
                 busMarkers[id] = L.marker([lat, lon], {
