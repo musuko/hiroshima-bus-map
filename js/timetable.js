@@ -1,20 +1,22 @@
 // js/timetable.js
 let tripLookup = {};
 let routeLookup = {};
+let routeJpLookup = {};
 let isGtfsReady = false;
 
-// 起動時に辞書を作成
 async function prepareGtfsData() {
     try {
-        const [rRes, tRes] = await Promise.all([
+        const [rRes, tRes, rJpRes] = await Promise.all([
             fetch('./hiroden/routes.txt'),
-            fetch('./hiroden/trips.txt')
+            fetch('./hiroden/trips.txt'),
+            fetch('./hiroden/routes_jp.txt')
         ]);
         
         const rText = await rRes.text();
         const tText = await tRes.text();
+        const rJpText = await rJpRes.text();
 
-        // routes辞書: route_id -> {no, name}
+        // 1. routes辞書
         const rRows = rText.trim().split(/\r?\n/);
         const rHead = rRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         rRows.slice(1).forEach(row => {
@@ -25,7 +27,7 @@ async function prepareGtfsData() {
             };
         });
 
-        // trips辞書: trip_id -> route_id
+        // 2. trips辞書
         const tRows = tText.trim().split(/\r?\n/);
         const tHead = tRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         tRows.slice(1).forEach(row => {
@@ -33,8 +35,27 @@ async function prepareGtfsData() {
             tripLookup[c[tHead.indexOf('trip_id')]] = c[tHead.indexOf('route_id')];
         });
 
+        // 3. routes_jp辞書 (buses.js用)
+        const rJpRows = rJpText.trim().split(/\r?\n/);
+        const rJpHead = rJpRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+        rJpRows.slice(1).forEach(row => {
+            const c = row.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            if (c.length > 1) {
+                routeJpLookup[c[rJpHead.indexOf('route_id')]] = {
+                    origin: c[rJpHead.indexOf('origin_stop')],
+                    via: c[rJpHead.indexOf('via_stop')],
+                    dest: c[rJpHead.indexOf('destination_stop')]
+                };
+            }
+        });
+        
+        // 他のファイルから参照できるように共有
+        window.routeJpLookup = routeJpLookup;
+        window.tripLookup = tripLookup;
+        window.routeLookup = routeLookup;
+
         isGtfsReady = true;
-        console.log("✅ 辞書準備完了");
+        console.log("✅ 全GTFS辞書準備完了");
     } catch (e) {
         console.error("辞書作成エラー:", e);
     }
@@ -42,7 +63,6 @@ async function prepareGtfsData() {
 prepareGtfsData();
 
 async function getTimetableForStop(stopId) {
-    // 辞書が準備できるまで待機（これがないと「不明」になる）
     while(!isGtfsReady) await new Promise(r => setTimeout(r, 100));
 
     const now = new Date();
@@ -55,7 +75,6 @@ async function getTimetableForStop(stopId) {
         let partialData = '';
         let timetable = [];
 
-        // ヘッダー解析用
         let idxTripId, idxDepTime, idxStopId;
         let isFirstChunk = true;
 
@@ -65,7 +84,7 @@ async function getTimetableForStop(stopId) {
 
             partialData += decoder.decode(value, { stream: true });
             const lines = partialData.split(/\r?\n/);
-            partialData = lines.pop(); // 切れ目処理
+            partialData = lines.pop();
 
             for (const line of lines) {
                 if (!line.trim()) continue;
@@ -79,11 +98,8 @@ async function getTimetableForStop(stopId) {
                     continue;
                 }
 
-                // stop_idが完全一致するか確認
                 if (columns[idxStopId] === stopId) {
                     const depTime = columns[idxDepTime];
-                    
-                    // 現在時刻以降の便のみ
                     if (depTime >= currentTimeStr) {
                         const tripId = columns[idxTripId];
                         const routeId = tripLookup[tripId];
