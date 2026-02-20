@@ -16,8 +16,8 @@ window.updateBusPositions = async function() {
 
         const busIcon = L.icon({
             iconUrl: './busimg/green.png',
-            iconSize: [80, 80],
-            iconAnchor: [40, 40],
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
             popupAnchor: [0, -20]
         });
 
