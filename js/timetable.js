@@ -7,9 +7,9 @@ let isGtfsReady = false;
 async function prepareGtfsData() {
     try {
         const [rRes, tRes, rJpRes] = await Promise.all([
-            fetch('./hiroden/routes.txt'),
-            fetch('./hiroden/trips.txt'),
-            fetch('./hiroden/routes_jp.txt')
+            fetch('./info/hiroden/routes.txt'),
+            fetch('./info/hiroden/trips.txt'),
+            fetch('./info/hiroden/routes_jp.txt')
         ]);
         
         const rText = await rRes.text();
@@ -69,7 +69,7 @@ async function getTimetableForStop(stopId) {
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
     
     try {
-        const response = await fetch('./hiroden/stop_times.txt');
+        const response = await fetch('./info/hiroden/stop_times.txt');
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let partialData = '';
