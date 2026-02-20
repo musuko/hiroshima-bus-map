@@ -2,22 +2,26 @@
 const busMarkers = {};
 
 window.updateBusPositions = async function() {
-    const realTimeUrl = "https://hiroden-api.vercel.app/api/get-bus";
+    // キャッシュを回避するためにクエリパラメータを付与
+    const realTimeUrl = "https://hiroden-api.vercel.app/api/get-bus?t=" + Date.now();
 
     try {
-        const response = await fetch(realTimeUrl, { cache: "no-store" });
+        const response = await fetch(realTimeUrl);
         const data = await response.json();
         
-        // 1. entityが存在するか、配列かチェック
+        // --- デバッグログ: APIの構造をそのまま表示 ---
+        console.log("--- API Raw Data ---", data);
+        
         const entities = data.entity || [];
-        if (!Array.isArray(entities) || entities.length === 0) {
-            console.warn("APIから有効なバスデータが届いていません(0件)。");
-            return;
+        console.log("Entity count:", entities.length);
+        
+        if (entities.length > 0) {
+            console.log("First entity sample:", entities[0]);
         }
+        // ------------------------------------------
 
         const targetMap = window.map;
         const activeIds = new Set();
-        
         const busIcon = L.icon({
             iconUrl: './busimg/green.png',
             iconSize: [80, 80],
@@ -26,42 +30,40 @@ window.updateBusPositions = async function() {
         });
 
         entities.forEach(item => {
-            // 2. vehicleオブジェクトの安全な取得
             const vehicle = item.vehicle;
             if (!vehicle) return;
 
-            // 3. 座標の安全な取得 (文字列を数値に変換)
+            // 座標の取得 (APIの仕様変更に対応できるよう柔軟に)
             const pos = vehicle.position;
-            if (!pos || pos.latitude === undefined || pos.longitude === undefined) return;
+            if (!pos) return;
 
             const lat = parseFloat(pos.latitude);
             const lon = parseFloat(pos.longitude);
-
-            // 4. 数値として有効かチェック
             if (isNaN(lat) || isNaN(lon)) return;
 
-            // 5. IDの特定
-            const id = (vehicle.vehicle && vehicle.vehicle.id) ? vehicle.vehicle.id : (item.id || "no-id");
+            // IDの取得 (複数の候補を試す)
+            const id = (vehicle.vehicle && vehicle.vehicle.id) ? vehicle.vehicle.id : 
+                       (item.id ? item.id : Math.random().toString());
+
             activeIds.add(id);
 
-            // 6. 路線情報の紐付け (routeJpLookup)
+            // 路線情報の取得
             const routeId = (vehicle.trip && vehicle.trip.route_id) ? vehicle.trip.route_id : null;
             const jpInfo = window.routeJpLookup ? window.routeJpLookup[routeId] : null;
 
             let popupContent = "";
             if (jpInfo) {
                 popupContent = `
-                    <div style="min-width:160px; font-family: sans-serif;">
+                    <div style="min-width:160px;">
                         <span style="color:#666; font-size:0.8em;">終点</span><br>
-                        <b style="color:#e60012; font-size:1.3em; line-height:1.2;">${jpInfo.dest}</b><br>
-                        <div style="margin-top:8px; border-top:1px solid #eee; padding-top:4px;">
-                            <small>始発: ${jpInfo.origin}</small>
-                            ${jpInfo.via ? `<br><small>経由: ${jpInfo.via}</small>` : ""}
-                        </div>
+                        <b style="color:#e60012; font-size:1.3em;">${jpInfo.dest}</b><br>
+                        <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                        <small>始発: ${jpInfo.origin}</small>
+                        ${jpInfo.via ? `<br><small>経由: ${jpInfo.via}</small>` : ""}
                     </div>
                 `;
             } else {
-                popupContent = `<div style="padding:5px;">運行中 (路線ID: ${routeId || '不明'})</div>`;
+                popupContent = `運行中 (ID: ${routeId || '不明'})`;
             }
 
             if (busMarkers[id]) {
@@ -72,12 +74,11 @@ window.updateBusPositions = async function() {
                 busMarkers[id] = L.marker([lat, lon], {
                     icon: busIcon,
                     zIndexOffset: 1000
-                }).addTo(targetMap)
-                  .bindPopup(popupContent);
+                }).addTo(targetMap).bindPopup(popupContent);
             }
         });
 
-        // 7. 存在しなくなったバスを削除
+        // 削除処理
         Object.keys(busMarkers).forEach(id => {
             if (!activeIds.has(id)) {
                 targetMap.removeLayer(busMarkers[id]);
@@ -88,6 +89,6 @@ window.updateBusPositions = async function() {
         console.log(`🚌 更新成功: ${activeIds.size} 台のバスを表示中`);
 
     } catch (error) {
-        console.error("バス位置の更新中にエラーが発生しました:", error);
+        console.error("バス位置の更新エラー:", error);
     }
 }
