@@ -7,48 +7,61 @@ window.updateBusPositions = async function() {
     try {
         const response = await fetch(realTimeUrl, { cache: "no-store" });
         const data = await response.json();
+        
+        // 1. entityが存在するか、配列かチェック
         const entities = data.entity || [];
+        if (!Array.isArray(entities) || entities.length === 0) {
+            console.warn("APIから有効なバスデータが届いていません(0件)。");
+            return;
+        }
 
-        // 地図オブジェクトが準備できていない場合はスキップ
         const targetMap = window.map;
-        if (!targetMap) return;
-
+        const activeIds = new Set();
+        
         const busIcon = L.icon({
             iconUrl: './busimg/green.png',
             iconSize: [80, 80],
             iconAnchor: [40, 40],
-            popupAnchor: [0, -30] // 80pxのアイコンに合わせて少し上に調整
+            popupAnchor: [0, -30]
         });
 
-        const activeIds = new Set();
-
         entities.forEach(item => {
+            // 2. vehicleオブジェクトの安全な取得
             const vehicle = item.vehicle;
-            if (!vehicle || !vehicle.position) return;
+            if (!vehicle) return;
 
-            const lat = parseFloat(vehicle.position.latitude);
-            const lon = parseFloat(vehicle.position.longitude);
-            const id = vehicle.vehicle ? vehicle.vehicle.id : (item.id || "unknown");
+            // 3. 座標の安全な取得 (文字列を数値に変換)
+            const pos = vehicle.position;
+            if (!pos || pos.latitude === undefined || pos.longitude === undefined) return;
 
-            if (!lat || !lon) return;
+            const lat = parseFloat(pos.latitude);
+            const lon = parseFloat(pos.longitude);
+
+            // 4. 数値として有効かチェック
+            if (isNaN(lat) || isNaN(lon)) return;
+
+            // 5. IDの特定
+            const id = (vehicle.vehicle && vehicle.vehicle.id) ? vehicle.vehicle.id : (item.id || "no-id");
             activeIds.add(id);
 
-            // 路線情報の取得をトライ
-            let routeId = (vehicle.trip && vehicle.trip.route_id) ? vehicle.trip.route_id : null;
-            let jpInfo = window.routeJpLookup ? window.routeJpLookup[routeId] : null;
+            // 6. 路線情報の紐付け (routeJpLookup)
+            const routeId = (vehicle.trip && vehicle.trip.route_id) ? vehicle.trip.route_id : null;
+            const jpInfo = window.routeJpLookup ? window.routeJpLookup[routeId] : null;
 
             let popupContent = "";
             if (jpInfo) {
                 popupContent = `
-                    <div style="min-width:150px;">
-                        <b style="color:#e60012; font-size:1.2em;">${jpInfo.dest} 行</b><br>
-                        <hr style="margin:5px 0;">
-                        <small>始発: ${jpInfo.origin}</small>
-                        ${jpInfo.via ? `<br><small>経由: ${jpInfo.via}</small>` : ""}
+                    <div style="min-width:160px; font-family: sans-serif;">
+                        <span style="color:#666; font-size:0.8em;">終点</span><br>
+                        <b style="color:#e60012; font-size:1.3em; line-height:1.2;">${jpInfo.dest}</b><br>
+                        <div style="margin-top:8px; border-top:1px solid #eee; padding-top:4px;">
+                            <small>始発: ${jpInfo.origin}</small>
+                            ${jpInfo.via ? `<br><small>経由: ${jpInfo.via}</small>` : ""}
+                        </div>
                     </div>
                 `;
             } else {
-                popupContent = `運行中 (路線ID: ${routeId || '不明'})`;
+                popupContent = `<div style="padding:5px;">運行中 (路線ID: ${routeId || '不明'})</div>`;
             }
 
             if (busMarkers[id]) {
@@ -64,7 +77,7 @@ window.updateBusPositions = async function() {
             }
         });
 
-        // 削除処理
+        // 7. 存在しなくなったバスを削除
         Object.keys(busMarkers).forEach(id => {
             if (!activeIds.has(id)) {
                 targetMap.removeLayer(busMarkers[id]);
@@ -75,6 +88,6 @@ window.updateBusPositions = async function() {
         console.log(`🚌 更新成功: ${activeIds.size} 台のバスを表示中`);
 
     } catch (error) {
-        console.error("バス位置の更新に失敗しました:", error);
+        console.error("バス位置の更新中にエラーが発生しました:", error);
     }
 }
