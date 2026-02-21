@@ -41,7 +41,8 @@ async function prepareGtfsData() {
                 routeJpLookup[c[rJpHead.indexOf('route_id')]] = {
                     origin: c[rJpHead.indexOf('origin_stop')],
                     via: c[rJpHead.indexOf('via_stop')],
-                    dest: c[rJpHead.indexOf('destination_stop')]
+                    dest: c[rJpHead.indexOf('destination_stop')],
+                    jp_parent_route_id: c[rJpHead.indexOf('jp_parent_route_id')]
                 };
             }
         });
