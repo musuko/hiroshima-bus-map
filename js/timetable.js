@@ -4,6 +4,9 @@ let routeLookup = {};
 let routeJpLookup = {};
 let isGtfsReady = false;
 
+// 【高速化】一度読み込んだバス停の全データをメモリに保持するキャッシュ
+const timetableCache = {};
+
 async function prepareGtfsData() {
     try {
         const [rRes, tRes, rJpRes] = await Promise.all([
@@ -16,6 +19,7 @@ async function prepareGtfsData() {
         const tText = await tRes.text();
         const rJpText = await rJpRes.text();
 
+        // routes.txt 解析
         const rRows = rText.trim().split(/\r?\n/);
         const rHead = rRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         rRows.slice(1).forEach(row => {
@@ -26,6 +30,7 @@ async function prepareGtfsData() {
             };
         });
 
+        // trips.txt 解析
         const tRows = tText.trim().split(/\r?\n/);
         const tHead = tRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         tRows.slice(1).forEach(row => {
@@ -33,6 +38,7 @@ async function prepareGtfsData() {
             tripLookup[c[tHead.indexOf('trip_id')]] = c[tHead.indexOf('route_id')];
         });
 
+        // routes_jp.txt 解析 (ループ判定用データ取得)
         const rJpRows = rJpText.trim().split(/\r?\n/);
         const rJpHead = rJpRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         rJpRows.slice(1).forEach(row => {
@@ -40,7 +46,6 @@ async function prepareGtfsData() {
             if (c.length > 1) {
                 routeJpLookup[c[rJpHead.indexOf('route_id')]] = {
                     origin: c[rJpHead.indexOf('origin_stop')],
-                    via: c[rJpHead.indexOf('via_stop')],
                     dest: c[rJpHead.indexOf('destination_stop')],
                     jp_parent_route_id: c[rJpHead.indexOf('jp_parent_route_id')]
                 };
@@ -62,18 +67,21 @@ prepareGtfsData();
 async function getTimetableForStop(stopId) {
     while(!isGtfsReady) await new Promise(r => setTimeout(r, 100));
 
-    const now = new Date();
-    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
-    
+    // 【高速化】キャッシュにあれば即座に返す
+    if (timetableCache[stopId]) {
+        console.log(`⚡ キャッシュから取得中: ${stopId}`);
+        return filterAndProcessTimetable(timetableCache[stopId]);
+    }
+
     try {
-        // 【重要】分割ファイルではなく元の巨大ファイルを見に行くように修正
+        console.log(`🔍 巨大ファイルをスキャン中... stop_id: ${stopId}`);
         const response = await fetch('./info/hiroden/stop_times.txt');
         if (!response.ok) throw new Error("stop_times.txtが見つかりません");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let partialData = '';
-        let timetable = [];
+        let stopSpecificData = []; // このバス停の全時間帯データを一時保存
 
         let idxTripId, idxDepTime, idxStopId;
         let isFirstChunk = true;
@@ -98,36 +106,61 @@ async function getTimetableForStop(stopId) {
                     continue;
                 }
 
-                // IDが一致するかチェック
+                // 一致するstop_idの行だけをメモリに貯める
                 if (columns[idxStopId] === stopId) {
-                    const depTime = columns[idxDepTime];
-                    // 時刻比較を緩める（深夜便対応）
-                    if (depTime >= currentTimeStr || depTime.startsWith('24') || depTime.startsWith('25')) {
-                        const tripId = columns[idxTripId];
-                        const routeId = tripLookup[tripId];
-                        let displayRouteId = routeId;
-                        
-                        // origin と dest が同じ場合は jp_parent_route_id を使用
-                        const routeJpData = routeJpLookup[routeId];
-                        if (routeJpData && routeJpData.origin === routeJpData.dest) {
-                            displayRouteId = routeJpData.jp_parent_route_id;
-                        }
-                        
-                        const routeInfo = routeLookup[displayRouteId] || { no: "??", name: "不明" };
-                        
-                        timetable.push({
-                            time: depTime.substring(0, 5),
-                            routeNo: routeInfo.no,
-                            headsign: routeInfo.name
-                        });
-                    }
+                    stopSpecificData.push({
+                        tripId: columns[idxTripId],
+                        depTime: columns[idxDepTime]
+                    });
                 }
             }
         }
-        return timetable.sort((a, b) => a.time.localeCompare(b.time));
+
+        // キャッシュに保存（全時間帯分）
+        timetableCache[stopId] = stopSpecificData;
+        
+        return filterAndProcessTimetable(stopSpecificData);
+
     } catch (error) {
         console.error("時刻表読み込みエラー:", error);
         return [];
     }
 }
+
+/**
+ * 取得した生データを「現在時刻以降」でフィルタリングし、
+ * ループ判定などの加工を行ってソートする補助関数
+ */
+function filterAndProcessTimetable(data) {
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+    return data
+        .filter(item => {
+            const t = item.depTime;
+            return t >= currentTimeStr || t.startsWith('24') || t.startsWith('25');
+        })
+        .map(item => {
+            const routeId = tripLookup[item.tripId];
+            let displayRouteId = routeId;
+            
+            // --- ループ判定ロジック ---
+            const routeJpData = routeJpLookup[routeId];
+            if (routeJpData && routeJpData.origin === routeJpData.dest) {
+                // origin と dest が同じ場合は jp_parent_route_id を使用
+                displayRouteId = routeJpData.jp_parent_route_id;
+            }
+            // ------------------------
+
+            const routeInfo = routeLookup[displayRouteId] || { no: "??", name: "不明" };
+
+            return {
+                time: item.depTime.substring(0, 5),
+                routeNo: routeInfo.no,
+                headsign: routeInfo.name
+            };
+        })
+        .sort((a, b) => a.time.localeCompare(b.time));
+}
+
 window.getTimetableForStop = getTimetableForStop;
