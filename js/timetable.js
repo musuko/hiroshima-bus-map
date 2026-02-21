@@ -35,7 +35,7 @@ async function prepareGtfsData() {
             tripLookup[c[tHead.indexOf('trip_id')]] = c[tHead.indexOf('route_id')];
         });
 
-        // 3. routes_jp辞書 (buses.js用)
+        // 3. routes_jp辞書
         const rJpRows = rJpText.trim().split(/\r?\n/);
         const rJpHead = rJpRows[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         rJpRows.slice(1).forEach(row => {
@@ -49,7 +49,7 @@ async function prepareGtfsData() {
             }
         });
         
-        // 他のファイルから参照できるように共有
+        // 共有
         window.routeJpLookup = routeJpLookup;
         window.tripLookup = tripLookup;
         window.routeLookup = routeLookup;
@@ -60,63 +60,58 @@ async function prepareGtfsData() {
         console.error("辞書作成エラー:", e);
     }
 }
-prepareGtfsData();
+// グローバルに関数を登録
+window.prepareGtfsData = prepareGtfsData;
 
 async function getTimetableForStop(stopId) {
+    // 準備待ち
     while(!isGtfsReady) await new Promise(r => setTimeout(r, 100));
 
     const now = new Date();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
     
+    // 分割ファイル（stop_times/XX/stopId.txt）を読みに行く方式に変更
+    const folder = stopId.substring(0, 2);
+    const url = `./info/hiroden/stop_times/${folder}/${stopId}.txt`;
+
     try {
-        const response = await fetch('./info/hiroden/stop_times.txt');
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let partialData = '';
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.warn(`時刻表なし: ${stopId}`);
+            return [];
+        }
+
+        const text = await response.text();
+        const lines = text.trim().split(/\r?\n/);
+        const header = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+        
+        const idxTripId = header.indexOf('trip_id');
+        const idxDepTime = header.indexOf('departure_time');
+
         let timetable = [];
 
-        let idxTripId, idxDepTime, idxStopId;
-        let isFirstChunk = true;
+        lines.slice(1).forEach(line => {
+            const columns = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            const depTime = columns[idxDepTime];
 
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
+            // 現在時刻以降のものを抽出
+            if (depTime >= currentTimeStr) {
+                const tripId = columns[idxTripId];
+                const routeId = tripLookup[tripId];
+                const routeInfo = routeLookup[routeId] || { no: "??", name: "不明" };
 
-            partialData += decoder.decode(value, { stream: true });
-            const lines = partialData.split(/\r?\n/);
-            partialData = lines.pop();
-
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                const columns = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-
-                if (isFirstChunk) {
-                    idxTripId = columns.indexOf('trip_id');
-                    idxDepTime = columns.indexOf('departure_time');
-                    idxStopId = columns.indexOf('stop_id');
-                    isFirstChunk = false;
-                    continue;
-                }
-
-                if (columns[idxStopId] === stopId) {
-                    const depTime = columns[idxDepTime];
-                    if (depTime >= currentTimeStr) {
-                        const tripId = columns[idxTripId];
-                        const routeId = tripLookup[tripId];
-                        const routeInfo = routeLookup[routeId] || { no: "??", name: "不明" };
-
-                        timetable.push({
-                            time: depTime,
-                            routeNo: routeInfo.no,
-                            headsign: routeInfo.name
-                        });
-                    }
-                }
+                timetable.push({
+                    time: depTime.substring(0, 5), // HH:mm 形式に
+                    routeNo: routeInfo.no,
+                    headsign: routeInfo.name
+                });
             }
-        }
+        });
+
         return timetable.sort((a, b) => a.time.localeCompare(b.time));
     } catch (error) {
-        console.error("ストリーム読込エラー:", error);
+        console.error("時刻表取得エラー:", error);
         return [];
     }
 }
+window.getTimetableForStop = getTimetableForStop;
