@@ -3,14 +3,24 @@ const busMarkers = {};
 
 // 関数の前に必ず async をつける
 async function updateBusPositions() {
-    // 必要な準備が整っていなければ何もしない
     if (!window.map || !window.routeJpLookup) return;
 
     const realTimeUrl = "https://hiroden-api.vercel.app/api/get-bus?t=" + Date.now();
 
     try {
         const response = await fetch(realTimeUrl);
-        const data = await response.json();
+        if (!response.ok) throw new Error("サーバー応答が異常です");
+        
+        // テキストとして一度受け取る（壊れていないか確認するため）
+        const rawText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch (e) {
+            console.error("JSONのパースに失敗しました。データが不完全な可能性があります。");
+            return; // ここで中断して次の15秒を待つ
+        }
+
         const entities = data.entity || [];
         const targetMap = window.map;
         const activeIds = new Set();
