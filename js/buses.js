@@ -1,12 +1,8 @@
-// js/buses.js の try の直後に追加
-const response = await fetch(realTimeUrl);
-const data = await response.json();
-console.log("受信データ:", data); // これがコンソールに出るか確認
-
 // js/buses.js
 const busMarkers = {};
 
-window.updateBusPositions = async function() {
+// 関数の前に必ず async をつける
+async function updateBusPositions() {
     // 必要な準備が整っていなければ何もしない
     if (!window.map || !window.routeJpLookup) return;
 
@@ -43,13 +39,11 @@ window.updateBusPositions = async function() {
             const tripId = v.trip ? v.trip.tripId : null;
             const routeId = (v.trip && v.trip.routeId) ? v.trip.routeId : (v.routeId || null);
             
-            // 3. 遅延情報の照合
             let delayText = "";
             const myUpdate = tripId ? delayMap[tripId] : null;
 
             if (myUpdate && myUpdate.stopTimeUpdate) {
                 let delaySeconds = 0;
-                // 最初に見つかった delay を取得
                 const foundUpdate = myUpdate.stopTimeUpdate.find(stu => 
                     (stu.departure && stu.departure.delay !== undefined) || 
                     (stu.arrival && stu.arrival.delay !== undefined)
@@ -103,7 +97,6 @@ window.updateBusPositions = async function() {
             }
         });
 
-        // 4. 削除処理
         Object.keys(busMarkers).forEach(id => {
             if (!activeIds.has(id)) {
                 targetMap.removeLayer(busMarkers[id]);
@@ -116,5 +109,7 @@ window.updateBusPositions = async function() {
     } catch (error) {
         console.error("バス位置の更新エラー:", error);
     }
-};
+}
 
+// 最後に window オブジェクトに登録する
+window.updateBusPositions = updateBusPositions;
