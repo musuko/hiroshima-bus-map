@@ -91,20 +91,21 @@ async function getTimetableForStop(stopId) {
 
         let timetable = [];
 
+        // js/timetable.js (中盤のループ部分)
+
         for (let i = 1; i < lines.length; i++) {
             const columns = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
             const depTime = columns[idxDepTime];
             if (!depTime) continue;
 
-            // 文字列比較で「現在以降」か「深夜（24時以降）」を判定
-            // GTFSの時刻が 24:00:00 以降の場合も考慮
-            if (depTime >= currentTimeStr || depTime.startsWith('24') || depTime.startsWith('25')) {
+            // 【テスト用】時刻の比較をせず、全部 push する
+            if (true) { 
                 const tripId = columns[idxTripId];
                 const routeId = tripLookup[tripId];
-                const routeInfo = routeLookup[routeId] || { no: "??", name: "不明" };
+                const routeInfo = routeLookup[rowId] || { no: "??", name: "不明" };
 
                 timetable.push({
-                    time: depTime.substring(0, 5), // "08:30" 形式にする
+                    time: depTime.substring(0, 5),
                     routeNo: routeInfo.no,
                     headsign: routeInfo.name
                 });
