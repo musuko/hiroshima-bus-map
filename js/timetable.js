@@ -105,8 +105,16 @@ async function getTimetableForStop(stopId) {
                     if (depTime >= currentTimeStr || depTime.startsWith('24') || depTime.startsWith('25')) {
                         const tripId = columns[idxTripId];
                         const routeId = tripLookup[tripId];
-                        const routeInfo = routeLookup[routeId] || { no: "??", name: "不明" };
-
+                        let displayRouteId = routeId;
+                        
+                        // origin と dest が同じ場合は jp_parent_route_id を使用
+                        const routeJpData = routeJpLookup[routeId];
+                        if (routeJpData && routeJpData.origin === routeJpData.dest) {
+                            displayRouteId = routeJpData.jp_parent_route_id;
+                        }
+                        
+                        const routeInfo = routeLookup[displayRouteId] || { no: "??", name: "不明" };
+                        
                         timetable.push({
                             time: depTime.substring(0, 5),
                             routeNo: routeInfo.no,
