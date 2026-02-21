@@ -112,3 +112,4 @@ window.updateBusPositions = async function() {
         console.error("バス位置の更新エラー:", error);
     }
 };
+
