@@ -85,27 +85,25 @@ async function updateBusPositions() {
             
             let popupContent = "";
             if (jpInfo) {
-                // 前後の空白を消して比較用に保持
                 const origin = (jpInfo.origin || "").trim();
                 const dest = (jpInfo.dest || "").trim();
-                const parentId = (jpInfo.jp_parent_route_id || "").trim();
+                const parentIdName = (jpInfo.jp_parent_route_id || "").trim();
 
-                // 表示用の変数を準備 (再代入を許可するため let を使用)
                 let displayDest = dest;
-                let displayOrigin = origin;
-            
-                // 1. 起点と終点が同じ、かつ親ルート名が存在する場合
-                if (origin === dest && parentId !== "") {
-                    // jp_parent_route_id に入っている系統名（市内6号線...）を使用
-                    displayDest = parentId;
+                let isLoop = false; // 循環判定フラグ
+
+                // 循環路線の判定
+                if (origin === dest && parentIdName !== "") {
+                    displayDest = parentIdName;
+                    isLoop = true;
                 }
-            
+
                 popupContent = `
                     <div style="min-width:160px;">
-                        <b style="color:#e60012; font-size:1.1em;">${displayDest} 行</b>${delayText}<br>
+                        <b style="color:#e60012; font-size:1.1em;">${displayDest}${isLoop ? "" : " 行"}</b>${delayText}<br>
                         <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                        <small>始発: ${displayOrigin}</small>
-                        ${jpInfo.via ? `<br><small>経由: ${jpInfo.via}</small>` : ""}
+                        ${isLoop ? "" : `<small>始発: ${jpInfo.origin}</small><br>`}
+                        ${jpInfo.via ? `<small>経由: ${jpInfo.via}</small>` : ""}
                     </div>
                 `;
             } else {
