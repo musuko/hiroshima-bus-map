@@ -1,3 +1,8 @@
+// js/buses.js の try の直後に追加
+const response = await fetch(realTimeUrl);
+const data = await response.json();
+console.log("受信データ:", data); // これがコンソールに出るか確認
+
 // js/buses.js
 const busMarkers = {};
 
