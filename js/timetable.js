@@ -142,22 +142,32 @@ function filterAndProcessTimetable(data) {
         })
         .map(item => {
             const routeId = tripLookup[item.tripId];
-            let displayRouteId = routeId;
+            const jpInfo = routeJpLookup[routeId];
             
-            // --- ループ判定ロジック ---
-            const routeJpData = routeJpLookup[routeId];
-            if (routeJpData && routeJpData.origin === routeJpData.dest) {
-                // origin と dest が同じ場合は jp_parent_route_id を使用
-                displayRouteId = routeJpData.jp_parent_route_id;
+            // デフォルトの値をセット
+            let displayRouteId = routeId;
+            let headsign = routeLookup[routeId] ? routeLookup[routeId].name : "不明";
+
+            // --- ループ判定ロジック (buses.js と統一) ---
+            if (jpInfo) {
+                const origin = (jpInfo.origin || "").trim();
+                const dest = (jpInfo.dest || "").trim();
+                const parentIdName = (jpInfo.jp_parent_route_id || "").trim();
+
+                // 起点と終点が同じ、かつ親ID（系統名）が存在する場合
+                if (origin === dest && parentIdName !== "") {
+                    // 行先表示を親系統名（例：市内6号線...）に差し替える
+                    headsign = parentIdName;
+                }
             }
-            // ------------------------
+            // ------------------------------------------
 
             const routeInfo = routeLookup[displayRouteId] || { no: "??", name: "不明" };
 
             return {
-                time: item.depTime.substring(0, 5),
+                time: item.depTime.substring(0, 5), // HH:mm 形式
                 routeNo: routeInfo.no,
-                headsign: routeInfo.name
+                headsign: headsign // 修正した行先をセット
             };
         })
         .sort((a, b) => a.time.localeCompare(b.time));
