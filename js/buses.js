@@ -90,20 +90,30 @@ async function updateBusPositions() {
                 const parentIdName = (jpInfo.jp_parent_route_id || "").trim();
 
                 let displayDest = dest;
-                let isLoop = false; // 循環判定フラグ
+                let isLoop = false;
 
-                // 循環路線の判定
+                // 循環路線の判定（ここが通っているのは確認済み）
                 if (origin === dest && parentIdName !== "") {
                     displayDest = parentIdName;
                     isLoop = true;
                 }
 
+                // 1. まずタイトル部分を作る（循環なら「行」を入れない）
+                const titleText = isLoop ? displayDest : `${displayDest} 行`;
+                
+                // 2. 始発情報の行を作る（循環なら空文字にする）
+                const originHtml = isLoop ? "" : `<small>始発: ${origin}</small><br>`;
+                
+                // 3. 経由情報の行を作る
+                const viaHtml = jpInfo.via ? `<small>経由: ${jpInfo.via}</small>` : "";
+
+                // 4. すべてを統合する
                 popupContent = `
                     <div style="min-width:160px;">
-                        <b style="color:#e60012; font-size:1.1em;">${displayDest}${isLoop ? "" : " 行"}</b>${delayText}<br>
+                        <b style="color:#e60012; font-size:1.1em;">${titleText}</b>${delayText}<br>
                         <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                        ${isLoop ? "" : `<small>始発: ${jpInfo.origin}</small><br>`}
-                        ${jpInfo.via ? `<small>経由: ${jpInfo.via}</small>` : ""}
+                        ${originHtml}
+                        ${viaHtml}
                     </div>
                 `;
             } else {
