@@ -85,17 +85,19 @@ async function updateBusPositions() {
             
             let popupContent = "";
             if (jpInfo) {
-                // --- 修正箇所：ループ判定ロジックの適用 ---
-                let displayDest = jpInfo.dest;
-                let displayOrigin = jpInfo.origin;
+                // 前後の空白を消して比較用に保持
+                const origin = (jpInfo.origin || "").trim();
+                const dest = (jpInfo.dest || "").trim();
+                const parentId = (jpInfo.jp_parent_route_id || "").trim();
+
+                // 表示用の変数を準備 (再代入を許可するため let を使用)
+                let displayDest = dest;
+                let displayOrigin = origin;
             
-                // 循環路線の判定（始発と終着が同じ場合）
-                if (jpInfo.origin === jpInfo.dest && jpInfo.jp_parent_route_id) {
-                    // 時刻表と同じく、親ルートIDの情報を取得して表示
-                    const parentRoute = window.routeLookup[jpInfo.jp_parent_route_id];
-                    if (parentRoute) {
-                        displayDest = parentRoute.name; // 「牛田早稲田団地 循環」などの名称に
-                    }
+                // 1. 起点と終点が同じ、かつ親ルート名が存在する場合
+                if (origin === dest && parentId !== "") {
+                    // jp_parent_route_id に入っている系統名（市内6号線...）を使用
+                    displayDest = parentId;
                 }
             
                 popupContent = `
