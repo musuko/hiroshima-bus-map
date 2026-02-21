@@ -44,6 +44,7 @@ window.updateBusPositions = async function() {
 
             if (myUpdate && myUpdate.stopTimeUpdate) {
                 let delaySeconds = 0;
+                // 最初に見つかった delay を取得
                 const foundUpdate = myUpdate.stopTimeUpdate.find(stu => 
                     (stu.departure && stu.departure.delay !== undefined) || 
                     (stu.arrival && stu.arrival.delay !== undefined)
@@ -110,4 +111,4 @@ window.updateBusPositions = async function() {
     } catch (error) {
         console.error("バス位置の更新エラー:", error);
     }
-}; // ここで関数の終わり
+};
