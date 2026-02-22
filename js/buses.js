@@ -2,8 +2,31 @@
 
 const busMarkers = {};
 
+/**
+ * 会社ごとの色と枠線を持った四角形アイコンを生成する
+ */
+function createSquareIcon(companyId) {
+    const isHirobus = (companyId === 'hirobus');
+    const bgColor = isHirobus ? '#FF0000' : '#ADFF2F'; // 広島バス: 赤, 広電: 黄緑
+    const borderColor = '#000000'; 
+
+    return L.divIcon({
+        className: 'custom-bus-icon',
+        html: `<div style="
+            width: 16px; 
+            height: 16px; 
+            background-color: ${bgColor}; 
+            border: 2px solid ${borderColor};
+            border-radius: 2px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+        "></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10]
+    });
+}
+
 async function updateBusPositions() {
-    // window.routeJpLookup がなくても実行を許可する
     if (!window.map) return; 
 
     const activeCompanies = BUS_COMPANIES.filter(c => c.active);
@@ -18,7 +41,6 @@ async function updateBusPositions() {
             const data = await response.json();
             const entities = data.entity || [];
 
-            // 1. 各車両の処理（ここでは await を使わない）
             entities.forEach(item => {
                 const v = item.vehicle;
                 if (!v || !v.position || !v.trip) return;
@@ -27,14 +49,11 @@ async function updateBusPositions() {
                 const vehicleId = `${company.id}_${v.vehicle.id || item.id}`;
                 activeIds.add(vehicleId);
 
-                // --- 軽量化：ここでは静的ファイルを検索しない ---
-                // 代わりに routes_jp.txt から基本情報を取る
                 const globalRouteId = `${company.id}_${v.trip.routeId}`;
-                const jpInfo = window.routeJpLookup[globalRouteId];
+                const jpInfo = window.routeJpLookup ? window.routeJpLookup[globalRouteId] : null;
                 const displayTitle = jpInfo ? `${jpInfo.dest} 行` : "運行中";
                 
-                // 遅延表示（既存ロジック...省略可）
-                let delayText = ""; 
+                let delayText = ""; // 必要に応じて遅延ロジックを追加
 
                 const finalPopupHtml = `
                     <div id="popup-${vehicleId}" style="min-width:180px;">
@@ -55,12 +74,12 @@ async function updateBusPositions() {
                 if (busMarkers[vehicleId]) {
                     busMarkers[vehicleId].setLatLng([lat, lon]);
                 } else {
+                    // ここで createSquareIcon を呼び出します
                     const icon = createSquareIcon(company.id);
                     const marker = L.marker([lat, lon], { icon: icon, zIndexOffset: 1000 })
                         .addTo(targetMap)
                         .bindPopup(finalPopupHtml, { autoClose: false });
 
-                    // 【重要】クリックされた時に初めて重いデータを読み込む
                     marker.on('click', async () => {
                         await new Promise(r => setTimeout(r, 200));
                         const popupDiv = document.getElementById(`popup-${vehicleId}`);
@@ -72,11 +91,9 @@ async function updateBusPositions() {
 
                         container.innerHTML = "読み込み中...";
                         
-                        // ここで初めて stop_times.txt を検索
                         const stopsData = await window.getFullTimetableForTrip(rawTripId, company.id);
                         
                         if (stopsData && stopsData.length > 0) {
-                            // 始発と終点を正しいものに書き換える
                             originLabel.innerHTML = `始発: ${stopsData[0].stopName}`;
                             destTitle.innerHTML = `${stopsData[stopsData.length - 1].stopName} 行`;
 
@@ -102,7 +119,6 @@ async function updateBusPositions() {
         }
     }
 
-    // 不要なバスを消去
     Object.keys(busMarkers).forEach(id => {
         if (!activeIds.has(id)) {
             targetMap.removeLayer(busMarkers[id]);
