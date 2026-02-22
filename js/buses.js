@@ -1,3 +1,7 @@
+// js/buses.js
+
+const busMarkers = {};
+
 async function updateBusPositions() {
     if (!window.map || !window.routeJpLookup) return;
 
