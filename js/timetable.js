@@ -61,51 +61,45 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
 
 function filterAndProcessTimetable(data, companyId) {
     const now = new Date();
-    // 現在時刻（HH:mm:ss）
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+    // 念のため window.activeServiceIds が存在するかチェック
+    if (!window.activeServiceIds) {
+        console.error("activeServiceIds が初期化されていません");
+        return [];
+    }
 
     return data
         .map(item => {
             const globalTripId = `${companyId}_${item.tripId}`;
             const tripData = window.tripLookup[globalTripId];
 
-            // 1. 今日の運行スケジュール（service_id）に含まれているかチェック
-            if (!tripData || !window.activeServiceIds.has(tripData.serviceId)) {
-                return null; // 今日は走らない便
-            }
+            // --- デバッグポイント ---
+            if (!tripData) return null;
 
-            // 2. 路線情報を取得 (tripData.routeId を使用)
+            // サービスIDが一致するか判定
+            const isActive = window.activeServiceIds.has(tripData.serviceId);
+            
+            if (!isActive) return null; 
+
             const routeId = tripData.routeId;
             const routeInfo = window.routeLookup[routeId] || { no: "??", name: "不明" };
             const jpInfo = window.routeJpLookup[routeId];
 
-            // 3. 行先（ヘッドサイン）の作成
             let headsign = item.headsign || routeInfo.name;
             if (jpInfo) {
                 const dest = (jpInfo.dest || "").trim();
-                const parentName = (jpInfo.jp_parent_route_id || "").trim();
-                const origin = (jpInfo.origin || "").trim();
-                
-                // 循環路線の判定
-                if (origin === dest && parentName !== "") {
-                    headsign = parentName;
-                } else {
-                    headsign = dest ? `${dest} 行` : headsign;
-                }
+                headsign = dest ? `${dest} 行` : headsign;
             }
 
             return {
-                time: item.depTime.substring(0, 5), // "12:30:00" -> "12:30"
+                time: item.depTime.substring(0, 5),
                 routeNo: routeInfo.no,
                 headsign: headsign,
                 companyId: companyId
             };
         })
-        .filter(item => item !== null) // 無効な便を除去
-        .filter(item => {
-            // 現在時刻より後のもの、または深夜便を表示
-            return item.time >= currentTimeStr.substring(0, 5) || item.time.startsWith('24') || item.time.startsWith('25');
-        })
+        .filter(item => item !== null)
         .sort((a, b) => a.time.localeCompare(b.time));
 }
 
