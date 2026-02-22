@@ -1,120 +1,49 @@
-// js/gtfs_loader.js
+// js/gtfs_loader.js 内の calendar.txt 処理部分
 
-window.tripLookup = {};
-window.routeLookup = {};
-window.routeJpLookup = {};
-window.isGtfsReady = false;
-window.activeServiceIds = new Set();
+// --- ここから調査用コード ---
+const now = new Date();
+const y = now.getFullYear();
+const m = String(now.getMonth() + 1).padStart(2, '0');
+const d = String(now.getDate()).padStart(2, '0');
+const todayStr = y + m + d; // "20240522" のような形式
+const dayOfWeek = now.getDay(); // 0:日, 1:月...
+const weekDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const todayWeekKey = weekDays[dayOfWeek];
 
-async function prepareAllGtfsData() {
-    try {
-        const activeCompanies = BUS_COMPANIES.filter(c => c.active);
+console.log(`🔍 日付判定デバッグ: 今日は ${todayStr} (${todayWeekKey}) です`);
 
-        const parse = (text, callback) => {
-            const lines = text.trim().split(/\r?\n/);
-            if (lines.length < 2) return;
-            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-            for (let i = 1; i < lines.length; i++) {
-                const columns = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                if (columns.length > 1) callback(columns, head);
-            }
-        };
+// ...（中略：ファイル読み込み処理）
 
-        for (const company of activeCompanies) {
-            console.log(`📦 GTFS辞書を作成中: ${company.name}`);
+// calendar.txt のループ内
+for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split(',').map(s => s.replace(/^"|"$/g, '').trim());
+    if (c.length < 10) continue;
 
-            const [rRes, tRes, rJpRes, cRes, cdRes] = await Promise.all([
-                fetch(`${company.staticPath}routes.txt`),
-                fetch(`${company.staticPath}trips.txt`),
-                fetch(`${company.staticPath}routes_jp.txt`),
-                fetch(`${company.staticPath}calendar.txt`),
-                fetch(`${company.staticPath}calendar_dates.txt`)
-            ]);
+    const serviceId = c[idxServiceId];
+    const startDate = c[idxStartDate];
+    const endDate = c[idxEndDate];
+    const isRunningToday = c[header.indexOf(todayWeekKey)] === "1";
 
-            const [rText, tText, rJpText, cText, cdText] = await Promise.all([
-                rRes.text(), tRes.text(), rJpRes.text(), cRes.text(), cdRes.text()
-            ]);
+    // 【重要】コンソールで範囲を確認
+    if (i === 1) {
+        console.log(`📅 GTFS有効期間サンプル: ${startDate} ～ ${endDate}`);
+    }
 
-            // --- 1. 今日の日付判定 ---
-            const now = new Date();
-            const todayStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
-            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-            const todayDayName = dayNames[now.getDay()];
-
-            // --- 2. 運行スケジュールの解析 (calendar.txt) ---
-            parse(cText, (c, head) => {
-                const sid = c[head.indexOf('service_id')];
-                const startDate = c[head.indexOf('start_date')];
-                const endDate = c[head.indexOf('end_date')];
-                const isDayOn = c[head.indexOf(todayDayName)] === '1';
-
-                // if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
-                //     const globalSid = `${company.id}_${sid}`;
-                //     window.activeServiceIds.add(globalSid);
-                //     console.log(`📅 有効なスケジュール: ${globalSid}`);
-                // }
-            });
-
-            // --- 2.5 祝日・臨時便の解析 (calendar_dates.txt) ---
-            parse(cdText, (c, head) => {
-                const sid = c[head.indexOf('service_id')];
-                const date = c[head.indexOf('date')];
-                const exceptionType = c[head.indexOf('exception_type')];
-                const globalSid = `${company.id}_${sid}`;
-
-                if (date === todayStr) {
-                    // if (exceptionType === '1') {
-                    //     // 1: 追加（臨時運行など）
-                    //     window.activeServiceIds.add(globalSid);
-                    //     console.log(`📅 臨時運行追加: ${globalSid}`);
-                    // } else if (exceptionType === '2') {
-                    //     // 2: 除外（祝日運休など）
-                    //     window.activeServiceIds.delete(globalSid);
-                    //     console.log(`📅 祝日・臨時運休: ${globalSid}`);
-                    // }
-                }
-            });
-
-            // --- 3. 各種データの解析 ---
-            parse(rText, (c, head) => {
-                const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.routeLookup[globalId] = {
-                    no: c[head.indexOf('route_short_name')],
-                    name: c[head.indexOf('route_long_name')],
-                    companyId: company.id
-                };
-            });
-
-            parse(tText, (c, head) => {
-                const tripId = c[head.indexOf('trip_id')];
-                const routeId = c[head.indexOf('route_id')];
-                const serviceId = c[head.indexOf('service_id')];
-            
-                const globalTripId = `${company.id}_${tripId}`;
-                const globalRouteId = `${company.id}_${routeId}`;
-                const globalServiceId = `${company.id}_${serviceId}`;
-            
-                window.tripLookup[globalTripId] = { 
-                    routeId: globalRouteId, 
-                    serviceId: globalServiceId 
-                };
-            });
-
-            parse(rJpText, (c, head) => {
-                const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.routeJpLookup[globalId] = {
-                    origin: c[head.indexOf('origin_stop')],
-                    dest: c[head.indexOf('destination_stop')],
-                    jp_parent_route_id: c[head.indexOf('jp_parent_route_id')]
-                };
-            });
-        }
-
-        window.isGtfsReady = true;
-        console.log("✅ 全社のGTFS辞書準備完了 (有効なサービス数: " + window.activeServiceIds.size + ")");
-    } catch (e) {
-        console.error("GTFS読み込みエラー:", e);
+    // 判定ロジック（一時的に日付チェックを無視して「曜日」だけで判定してみる）
+    if (isRunningToday) {
+        window.activeServiceIds.add(serviceId);
     }
 }
 
-prepareAllGtfsData();
+// calendar_dates.txt (臨時運行) のループ内
+// ここも、日付が今日(todayStr)と一致するかチェックしている箇所にログを出す
+if (c[idxDate] === todayStr) {
+    const exceptionType = c[idxExceptionType];
+    if (exceptionType === "1") {
+        window.activeServiceIds.add(serviceId);
+        // console.log("📅 臨時運行追加: " + serviceId); // 消したい場合はここをコメントアウト
+    } else {
+        window.activeServiceIds.delete(serviceId);
+    }
+}
+// --- 調査用コードここまで ---
