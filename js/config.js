@@ -4,7 +4,7 @@ const BUS_COMPANIES = [
         name: '広電バス',
         staticPath: './info/hiroden/',
         // id=8 を指定
-        realtimeUrl: 'https://xxx.vercel.app/api/get-bus?id=8',
+        realtimeUrl: 'https://hiroden-api.vercel.app/api/get-bus?id=8',
         active: true
     },
     {
@@ -12,7 +12,7 @@ const BUS_COMPANIES = [
         name: '広島バス',
         staticPath: './info/hirobus/',
         // id=9 を指定
-        realtimeUrl: 'https://xxx.vercel.app/api/get-bus?id=9',
+        realtimeUrl: 'https://hiroden-api.vercel.app/api/get-bus?id=9',
         active: true
     }
 ];
