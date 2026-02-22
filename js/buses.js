@@ -138,17 +138,71 @@ async function updateBusPositions() {
                     popupContent = `${company.name} 運行中${delayText}`;
                 }
 
+                // ポップアップのベースHTML（時刻表を表示する空のdivを追加）
+                const finalPopupHtml = `
+                    <div id="popup-${vehicleId}" style="min-width:180px;">
+                        ${popupContent}
+                        <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                        <div class="trip-timetable-container" style="max-height:150px; overflow-y:auto; font-size:11px; color:#555;">
+                            <span style="color:#999;">クリックで全停留所の時刻表を表示</span>
+                        </div>
+                    </div>
+                `;
+
                 // マーカーの作成または更新
                 if (busMarkers[vehicleId]) {
                     busMarkers[vehicleId].setLatLng([lat, lon]);
-                    busMarkers[vehicleId].setPopupContent(popupContent);
+                    
+                    // 【改善】ポップアップが開いている間は、中身を上書きしない
+                    // これにより、読み込んだ時刻表が自動更新で消えるのを防ぎます
+                    const currentPopup = busMarkers[vehicleId].getPopup();
+                    if (!currentPopup.isOpen()) {
+                        busMarkers[vehicleId].setPopupContent(finalPopupHtml);
+                    }
                 } else {
-                    // ここで会社に応じた四角形アイコンを指定
                     const icon = createSquareIcon(company.id);
-                    busMarkers[vehicleId] = L.marker([lat, lon], { icon: icon, zIndexOffset: 1000 })
+                    const marker = L.marker([lat, lon], { icon: icon, zIndexOffset: 1000 })
                         .addTo(targetMap)
-                        .bindPopup(popupContent, { autoClose: false });
+                        .bindPopup(finalPopupHtml, { autoClose: false });
+
+                    // 【追加】クリックイベントで詳細時刻表をロード
+                    marker.on('click', async () => {
+                        // 少し待ってからDOMを取得（Leafletのポップアップ描画待ち）
+                        await new Promise(r => setTimeout(r, 100));
+                        const container = document.querySelector(`#popup-${vehicleId} .trip-timetable-container`);
+                        if (!container) return;
+
+                        container.innerHTML = "時刻表を読み込み中...";
+
+                        // timetable.js の関数を呼び出し
+                        const stops = await window.getFullTimetableForTrip(rawTripId, company.id);
+                        
+                        if (stops.length === 0) {
+                            container.innerHTML = "時刻表データがありません。";
+                            return;
+                        }
+
+                        let tableHtml = `
+                            <table style="width:100%; border-collapse:collapse; margin-top:5px;">
+                                <tr style="background:#f8f9fa; position:sticky; top:0;">
+                                    <th style="text-align:left; padding:2px; border-bottom:1px solid #ddd;">停留所</th>
+                                    <th style="text-align:right; padding:2px; border-bottom:1px solid #ddd;">時刻</th>
+                                </tr>
+                        `;
+                        stops.forEach(s => {
+                            tableHtml += `
+                                <tr style="border-bottom:1px solid #f0f0f0;">
+                                    <td style="padding:3px 2px;">${s.stopName}</td>
+                                    <td style="padding:3px 2px; text-align:right; white-space:nowrap;">${s.time}</td>
+                                </tr>`;
+                        });
+                        tableHtml += `</table>`;
+                        container.innerHTML = tableHtml;
+                    });
+
+                    busMarkers[vehicleId] = marker;
                 }
+            // --- ここまで ---
             });
 
         } catch (error) {
