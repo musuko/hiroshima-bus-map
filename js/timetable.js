@@ -4,24 +4,21 @@ if (typeof window.timetableCache === 'undefined') {
     window.timetableCache = {};
 }
 
-// 会社ごとのキャンセル用（fetch自体を止める）
 window.currentAborts = {};
-// 現在表示処理中の最新StopIDを記録
 window.activeDisplayStopId = "";
 
 async function getTimetableForStop(stopId, companyId = 'hiroden') {
+    // キャッシュがあれば、AbortControllerを介さず即座にデータを返す（最速ルート）
+    const cacheKey = `${companyId}_${stopId}`;
+    if (window.timetableCache[cacheKey]) {
+        return filterAndProcessTimetable(window.timetableCache[cacheKey], companyId);
+    }
+
     if (window.currentAborts[companyId]) {
         window.currentAborts[companyId].abort();
     }
     window.currentAborts[companyId] = new AbortController();
     const signal = window.currentAborts[companyId].signal;
-
-    while (!window.isGtfsReady) await new Promise(r => setTimeout(r, 100));
-
-    const cacheKey = `${companyId}_${stopId}`;
-    if (window.timetableCache[cacheKey]) {
-        return filterAndProcessTimetable(window.timetableCache[cacheKey], companyId);
-    }
 
     try {
         const company = BUS_COMPANIES.find(c => c.id === companyId);
@@ -67,60 +64,61 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
 
 function filterAndProcessTimetable(data, companyId) {
     if (!window.activeServiceIds || !window.tripLookup) return [];
-    const processed = data.map(item => {
+    return data.map(item => {
         const globalTripId = `${companyId}_${item.tripId}`;
         const tripData = window.tripLookup[globalTripId];
-        if (!tripData) return null;
-        if (!window.activeServiceIds.has(tripData.serviceId)) return null;
+        if (!tripData || !window.activeServiceIds.has(tripData.serviceId)) return null;
         const routeInfo = window.routeLookup[tripData.routeId] || { no: "??", name: "不明" };
         return { time: item.depTime.substring(0, 5), routeNo: routeInfo.no, headsign: routeInfo.name, companyId: companyId };
     }).filter(v => v !== null);
-    return processed;
 }
 
 async function showUnifiedTimetable(stopId, companyIds, elementId) {
-    // 【最重要】現在表示しようとしているIDをグローバルに記録
+    // 1. 状態のリセット（これからこのIDを表示することを明確にする）
     window.activeDisplayStopId = stopId;
     
+    // 2. 表示先コンテナの確保（少し粘り強く探す）
     let container = null;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) { // 回数を増やして2秒間待機
         container = document.getElementById(elementId);
         if (container) break;
         await new Promise(r => setTimeout(r, 100));
     }
+    
     if (!container) return;
 
+    // 3. 読み込み中状態を再セット（再表示時も「読み込み中」を確実に出す）
     const originalHeader = container.innerHTML.split('<hr>')[0] || `<strong>時刻表</strong>`;
+    if (!container.innerHTML.includes('<table')) {
+        container.innerHTML = `${originalHeader}<hr><div id="loading-${stopId}">時刻表を読み込み中...</div>`;
+    }
 
     try {
         const promises = companyIds.map(cid => getTimetableForStop(stopId, cid));
         const results = await Promise.all(promises);
 
-        // 【最重要】重い処理が終わった後、今まだそのバス停が「主役」か確認
-        if (window.activeDisplayStopId !== stopId) {
-            console.log(`🚫 破棄: ${stopId} はもう最新ではありません。`);
-            return;
-        }
+        // 4. 表示判定：今のポップアップがまだこのIDを求めているか
+        if (window.activeDisplayStopId !== stopId) return;
 
         let combined = results.flat().sort((a, b) => a.time.localeCompare(b.time));
 
         if (combined.length === 0) {
             container.innerHTML = `${originalHeader}<hr><div style="padding:10px; color:#666;">本日の運行予定はありません</div>`;
         } else {
-            let html = `${originalHeader}<hr><div style="max-height:250px; overflow-y:auto;"><table style="width:100%; font-size:12px; border-collapse:collapse;">`;
+            let html = `${originalHeader}<hr><div style="max-height:250px; overflow-y:auto;"><table style="width:100%; font-size:12px; border-collapse:collapse; background:white;">`;
             combined.forEach(item => {
                 const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
                 html += `<tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:6px 0; font-weight:bold; width:45px;">${item.time}</td>
-                    <td style="padding:6px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold; font-size:10px;">${item.routeNo}</span></td>
-                    <td style="padding:6px 0;">${item.headsign}</td>
+                    <td style="padding:8px 0; font-weight:bold; width:45px; color:#333;">${item.time}</td>
+                    <td style="padding:8px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold; font-size:10px;">${item.routeNo}</span></td>
+                    <td style="padding:8px 0; color:#444;">${item.headsign}</td>
                 </tr>`;
             });
             html += `</table></div>`;
             container.innerHTML = html;
         }
     } catch (e) {
-        console.error("更新エラー:", e);
+        console.error("表示エラー:", e);
     }
 }
 
