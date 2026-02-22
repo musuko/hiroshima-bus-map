@@ -45,7 +45,9 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
                     isFirstChunk = false;
                     continue;
                 }
-                if (c[idxStopId].trim().replace(/^"|"$/g, '') === stopId.trim().replace(/^"|"$/g, '')) {
+                
+                // 前後の空白を削除して比較（72820 0 などのスペース対策）
+                if (c[idxStopId] && c[idxStopId].trim() === stopId.trim()) {
                     stopSpecificData.push({ tripId: c[idxTripId], depTime: c[idxDepTime] });
                 }
             }
@@ -62,45 +64,30 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
 function filterAndProcessTimetable(data, companyId) {
     if (!window.activeServiceIds) return [];
 
-    return data
-        .map(item => {
-            const globalTripId = `${companyId}_${item.tripId}`;
-            const tripData = window.tripLookup[globalTripId];
+    const processed = data.map(item => {
+        const globalTripId = `${companyId}_${item.tripId}`;
+        const tripData = window.tripLookup[globalTripId];
 
-            if (!tripData) return null;
+        if (!tripData) return null;
 
-            // 判定用ログ（あまりに多いと重いので、最初の数件だけ出すなど調整可）
-            const isActive = window.activeServiceIds.has(tripData.serviceId);
-            
-            if (!isActive) return null; 
+        // IDの不一致がないかチェック
+        const isActive = window.activeServiceIds.has(tripData.serviceId);
+        if (!isActive) return null;
 
-            const routeId = tripData.routeId;
-            const routeInfo = window.routeLookup[routeId] || { no: "??", name: "不明" };
-            const jpInfo = window.routeJpLookup[routeId];
+        const routeId = tripData.routeId;
+        const routeInfo = window.routeLookup[routeId] || { no: "??", name: "不明" };
 
-            let headsign = item.headsign || routeInfo.name;
-            if (jpInfo) {
-                const dest = (jpInfo.dest || "").trim();
-                headsign = dest ? `${dest} 行` : headsign;
-            }
+        return {
+            time: item.depTime.substring(0, 5),
+            routeNo: routeInfo.no,
+            headsign: routeInfo.name, // 簡略化
+            companyId: companyId
+        };
+    }).filter(v => v !== null);
 
-            return {
-                time: item.depTime.substring(0, 5),
-                routeNo: routeInfo.no,
-                headsign: headsign,
-                companyId: companyId
-            };
-        })
-        .filter(item => item !== null)
-        // 一旦、現在時刻フィルターをコメントアウトして「今日の全便」を表示させてみます
-        // .filter(item => {
-        //    const now = new Date();
-        //    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        //    return item.time >= currentTime;
-        // })
-        .sort((a, b) => a.time.localeCompare(b.time));
+    // 一旦ソートだけして返す（全件表示テスト）
+    return processed.sort((a, b) => a.time.localeCompare(b.time));
 }
-
 /**
  * 共通 stop_id を持つ全会社の時刻表を結合して表示
  */
