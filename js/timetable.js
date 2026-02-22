@@ -111,11 +111,13 @@ function filterAndProcessTimetable(data, companyId) {
     return processed.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-async function showUnifiedTimetable(stopId, companyIds, elementId) {
-    // 宣言はここ一度だけ
-    let container = null;
+window.lastTimetableRequestId = 0;
 
-    // LeafletのポップアップがDOMに挿入されるまで待機
+async function showUnifiedTimetable(stopId, companyIds, elementId) {
+    // リクエストごとにユニークなIDを割り振る
+    const currentRequestId = ++window.lastTimetableRequestId;
+    
+    let container = null;
     for (let i = 0; i < 10; i++) {
         container = document.getElementById(elementId);
         if (container) break;
@@ -124,12 +126,19 @@ async function showUnifiedTimetable(stopId, companyIds, elementId) {
     
     if (!container) return;
 
-    // ヘッダー部分の保存（「読み込み中...」の前の強調テキストなどを抽出）
     const originalHeader = container.innerHTML.split('<hr>')[0] || `<strong>時刻表</strong>`;
 
     try {
         const promises = companyIds.map(cid => getTimetableForStop(stopId, cid));
         const results = await Promise.all(promises);
+
+        // ★重要：データが揃った時点で、自分が「最新のリクエスト」か確認する
+        // もし別のバス停がクリックされていたら、この処理は途中で破棄する
+        if (currentRequestId !== window.lastTimetableRequestId) {
+            console.log(`⚠️ 古いリクエスト(ID:${currentRequestId})を破棄しました`);
+            return;
+        }
+
         const combined = results.flat().sort((a, b) => a.time.localeCompare(b.time));
 
         if (combined.length === 0) {
@@ -149,8 +158,10 @@ async function showUnifiedTimetable(stopId, companyIds, elementId) {
             container.innerHTML = html;
         }
     } catch (e) {
-        console.error("表示更新エラー:", e);
-        container.innerHTML = `${originalHeader}<hr><div style="color:red;">時刻表の読み込みに失敗しました</div>`;
+        if (currentRequestId === window.lastTimetableRequestId) {
+            console.error("表示更新エラー:", e);
+            container.innerHTML = `${originalHeader}<hr><div style="color:red;">時刻表の読み込みに失敗しました</div>`;
+        }
     }
 }
 
