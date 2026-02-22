@@ -48,11 +48,11 @@ async function prepareAllGtfsData() {
                 const endDate = c[head.indexOf('end_date')];
                 const isDayOn = c[head.indexOf(todayDayName)] === '1';
 
-                if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
-                    const globalSid = `${company.id}_${sid}`;
-                    window.activeServiceIds.add(globalSid);
-                    console.log(`📅 有効なスケジュール: ${globalSid}`);
-                }
+                // if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
+                //     const globalSid = `${company.id}_${sid}`;
+                //     window.activeServiceIds.add(globalSid);
+                //     console.log(`📅 有効なスケジュール: ${globalSid}`);
+                // }
             });
 
             // --- 2.5 祝日・臨時便の解析 (calendar_dates.txt) ---
@@ -63,15 +63,15 @@ async function prepareAllGtfsData() {
                 const globalSid = `${company.id}_${sid}`;
 
                 if (date === todayStr) {
-                    if (exceptionType === '1') {
-                        // 1: 追加（臨時運行など）
-                        window.activeServiceIds.add(globalSid);
-                        console.log(`📅 臨時運行追加: ${globalSid}`);
-                    } else if (exceptionType === '2') {
-                        // 2: 除外（祝日運休など）
-                        window.activeServiceIds.delete(globalSid);
-                        console.log(`📅 祝日・臨時運休: ${globalSid}`);
-                    }
+                    // if (exceptionType === '1') {
+                    //     // 1: 追加（臨時運行など）
+                    //     window.activeServiceIds.add(globalSid);
+                    //     console.log(`📅 臨時運行追加: ${globalSid}`);
+                    // } else if (exceptionType === '2') {
+                    //     // 2: 除外（祝日運休など）
+                    //     window.activeServiceIds.delete(globalSid);
+                    //     console.log(`📅 祝日・臨時運休: ${globalSid}`);
+                    // }
                 }
             });
 
