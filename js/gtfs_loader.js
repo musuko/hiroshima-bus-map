@@ -1,38 +1,70 @@
 // js/gtfs_loader.js
 
-// 全社共通の器を window に用意
 window.tripLookup = {};
 window.routeLookup = {};
 window.routeJpLookup = {};
 window.isGtfsReady = false;
+window.activeServiceIds = new Set();
 
 async function prepareAllGtfsData() {
     try {
         const activeCompanies = BUS_COMPANIES.filter(c => c.active);
 
+        // 共通のパース関数を先に定義
+        const parse = (text, callback) => {
+            const lines = text.trim().split(/\r?\n/);
+            if (lines.length < 2) return;
+            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            for (let i = 1; i < lines.length; i++) {
+                const columns = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (columns.length > 1) callback(columns, head);
+            }
+        };
+
         for (const company of activeCompanies) {
             console.log(`📦 GTFS辞書を作成中: ${company.name}`);
 
-            const [rRes, tRes, rJpRes] = await Promise.all([
+            const [rRes, tRes, rJpRes, cRes, cdRes] = await Promise.all([
                 fetch(`${company.staticPath}routes.txt`),
                 fetch(`${company.staticPath}trips.txt`),
-                fetch(`${company.staticPath}routes_jp.txt`)
+                fetch(`${company.staticPath}routes_jp.txt`),
+                fetch(`${company.staticPath}calendar.txt`),
+                fetch(`${company.staticPath}calendar_dates.txt`)
             ]);
 
-            const [rText, tText, rJpText] = await Promise.all([
-                rRes.text(), tRes.text(), rJpRes.text()
+            const [rText, tText, rJpText, cText, cdText] = await Promise.all([
+                rRes.text(), tRes.text(), rJpRes.text(), cRes.text(), cdRes.text()
             ]);
 
-            const parse = (text, callback) => {
-                const lines = text.trim().split(/\r?\n/);
-                const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                for (let i = 1; i < lines.length; i++) {
-                    const columns = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                    if (columns.length > 1) callback(columns, head);
+            // --- 1. 今日の日付判定 ---
+            const now = new Date();
+            const todayStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const todayDayName = dayNames[now.getDay()];
+
+            // --- 2. 運行スケジュールの解析 ---
+            parse(cText, (c, head) => {
+                const sid = c[head.indexOf('service_id')];
+                const startDate = c[head.indexOf('start_date')];
+                const endDate = c[head.indexOf('end_date')];
+                const isDayOn = c[head.indexOf(todayDayName)] === '1';
+
+                if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
+                    window.activeServiceIds.add(`${company.id}_${sid}`);
                 }
-            };
+            });
 
-            // routes解析 (IDに会社名を付与)
+            parse(cdText, (c, head) => {
+                const sid = c[head.indexOf('service_id')];
+                const date = c[head.indexOf('date')];
+                const type = c[head.indexOf('exception_type')];
+                if (date === todayStr) {
+                    if (type === '1') window.activeServiceIds.add(`${company.id}_${sid}`);
+                    if (type === '2') window.activeServiceIds.delete(`${company.id}_${sid}`);
+                }
+            });
+
+            // --- 3. 各種データの解析 ---
             parse(rText, (c, head) => {
                 const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
                 window.routeLookup[globalId] = {
@@ -42,14 +74,18 @@ async function prepareAllGtfsData() {
                 };
             });
 
-            // trips解析
             parse(tText, (c, head) => {
                 const globalTripId = `${company.id}_${c[head.indexOf('trip_id')]}`;
                 const globalRouteId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.tripLookup[globalTripId] = globalRouteId;
+                const sid = `${company.id}_${c[head.indexOf('service_id')]}`;
+                
+                // serviceIdも含めて保存するように変更
+                window.tripLookup[globalTripId] = { 
+                    routeId: globalRouteId, 
+                    serviceId: `${company.id}_${sid}` 
+                };
             });
 
-            // routes_jp解析
             parse(rJpText, (c, head) => {
                 const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
                 window.routeJpLookup[globalId] = {
@@ -61,7 +97,7 @@ async function prepareAllGtfsData() {
         }
 
         window.isGtfsReady = true;
-        console.log("✅ 全社のGTFS辞書準備完了");
+        console.log("✅ 全社のGTFS辞書準備完了 (有効なサービス数: " + window.activeServiceIds.size + ")");
     } catch (e) {
         console.error("GTFS読み込みエラー:", e);
     }
