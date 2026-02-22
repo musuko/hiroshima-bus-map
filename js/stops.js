@@ -7,7 +7,7 @@ async function loadAllStops() {
     const stopMap = {}; // stop_id をキーにして統合する辞書
 
     for (const company of activeCompanies) {
-        try {
+        try { // tryはループの内側に入れるのが安全です
             const filePath = `${company.staticPath}stops.txt`;
             const response = await fetch(filePath);
             if (!response.ok) continue;
@@ -32,7 +32,7 @@ async function loadAllStops() {
                         name: name,
                         lat: lat,
                         lon: lon,
-                        companies: [] // どの会社がこのIDを使っているか
+                        companies: [] 
                     };
                 }
                 
@@ -48,38 +48,46 @@ async function loadAllStops() {
     renderMergedStops(stopMap);
 }
 
-// js/stops.js の renderMergedStops 関数内を修正
-
 function renderMergedStops(stopMap) {
     const targetMap = window.map;
     
     Object.values(stopMap).forEach(stop => {
-        let markerColor = "#3388ff"; // デフォルト（青）
+        let markerColor = "#3388ff"; 
 
-        // 会社リストを取得
         const companies = stop.companies;
 
         if (companies.length > 1) {
-            // --- 複数社がミックスしているバス停 ---
-            markerColor = "#9400D3"; // 目立つ色：ダークバイオレット（紫）
+            markerColor = "#9400D3"; // 共通：紫
         } else if (companies.includes('hiroden')) {
-            // --- 広電バス単独 ---
-            markerColor = "#82c91e"; // 黄緑（buses.jsと統一）
+            markerColor = "#82c91e"; // 広電：黄緑
         } else if (companies.includes('hirobus')) {
-            // --- 広島バス単独 ---
-            markerColor = "#e60012"; // 赤（buses.jsと統一）
+            markerColor = "#e60012"; // 広バス：赤
         }
 
+        // 1. 本体のマーカー（見た目用）
         const marker = L.circleMarker([stop.lat, stop.lon], {
-            radius: 6,           // 少し小さくしてスッキリさせます
-            fillColor: "#ffffff", // 中は白
-            color: markerColor,   // 枠線の色
-            weight: 3,            // 枠線を少し太くして色を強調
+            radius: 7,
+            fillColor: "#ffffff",
+            color: markerColor,
+            weight: 3,
             opacity: 1,
-            fillOpacity: 0.9
+            fillOpacity: 0.9,
+            className: 'clickable-stop' 
         }).addTo(targetMap);
+        
+        // 2. 透明な大きな円を重ねてクリック判定を強化（半径20px）
+        L.circleMarker([stop.lat, stop.lon], {
+            radius: 20, 
+            stroke: false,
+            fillColor: 'transparent', 
+            fillOpacity: 0
+        }).addTo(targetMap).on('click', (e) => {
+            // 地図の他のイベント（クリックでポップアップが閉じる等）を防止しつつ本体を叩く
+            L.DomEvent.stopPropagation(e);
+            marker.fire('click'); 
+        });
 
-        // クリックイベントなどはそのまま維持
+        // 3. クリックした時の処理（ポップアップと時刻表呼び出し）
         marker.on('click', async () => {
             const popupId = `popup-${stop.stopId}`;
             const popupContent = `<div id="${popupId}" style="min-width:200px;">
