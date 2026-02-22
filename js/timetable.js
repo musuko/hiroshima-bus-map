@@ -46,78 +46,84 @@ async function getFullTimetableForTrip(tripId, companyId) {
  * 地図上のバス停（丸いマーカー）をクリックした時に使う
  */
 window.getTimetableForStop = async function(stopId) {
-    console.log("停留所詳細を表示:", stopId);
-
-    // 1. 表示エリアの確保（ポップアップ内の特定のdivや、専用のパネル）
+    console.log("1. 検索開始 stopId:", stopId);
+    
     const container = document.getElementById('unified-timetable-container');
     if (!container) {
-        console.warn("表示用コンテナが見つかりません");
+        console.error("エラー: 表示用コンテナ 'unified-timetable-container' がHTMLに存在しません。");
         return;
     }
-
-    container.innerHTML = `<div style="padding:10px;">時刻表を検索中...</div>`;
+    container.innerHTML = "時刻表を読み込み中...";
 
     try {
+        // --- 手順2: バス停名称の取得 ---
+        // window.stopLookup は gtfs_loader.js で作成済みのはず
+        const stopName = window.stopLookup[stopId]?.name || `停留所ID: ${stopId}`;
+        console.log("2. バス停名称確定:", stopName);
+
         let timetableData = [];
 
-        // 2. 有効な会社ごとに stop_times.txt をスキャン
+        // --- 手順3: stop_times.txt を読み込んで時刻と行先を抽出 ---
         for (const company of BUS_COMPANIES.filter(c => c.active)) {
+            console.log(`3. ${company.name} のファイルを読み込みます...`);
+            
             const res = await fetch(`${company.staticPath}stop_times.txt`);
+            if (!res.ok) {
+                console.warn(`${company.name} の stop_times.txt が見つかりません`);
+                continue;
+            }
             const text = await res.text();
             const lines = text.trim().split(/\r?\n/);
+            
+            // ヘッダー解析
             const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-
-            const tripIdIdx = head.indexOf('trip_id');
             const stopIdIdx = head.indexOf('stop_id');
             const arrivalIdx = head.indexOf('arrival_time');
+            const headsignIdx = head.indexOf('stop_headsign'); // 行先
+
+            console.log(`4. ${company.name} の解析開始（全 ${lines.length} 行）`);
 
             for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(',');
-                // ID一致確認（高速化のため正規表現を使わず比較）
-                if (cols[stopIdIdx]?.replace(/^"|"$/g, '') === stopId) {
+                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                
+                if (cols[stopIdIdx] === stopId) {
                     timetableData.push({
-                        time: cols[arrivalIdx]?.replace(/^"|"$/g, '').substring(0, 5),
-                        companyName: company.name,
-                        tripId: cols[tripIdIdx]?.replace(/^"|"$/g, '')
+                        time: cols[arrivalIdx] ? cols[arrivalIdx].substring(0, 5) : "--:--",
+                        headsign: cols[headsignIdx] || "運行中",
+                        company: company.name
                     });
                 }
             }
         }
 
-        // 3. 時刻順にソート
+        console.log("5. データ抽出完了。件数:", timetableData.length);
+
+        // --- 手順4: ソートと表示 ---
         timetableData.sort((a, b) => a.time.localeCompare(b.time));
 
-        // 4. 結果の描画
         if (timetableData.length === 0) {
-            container.innerHTML = `<div style="padding:10px;">本日の運行データはありません。</div>`;
+            container.innerHTML = `<h4>${stopName}</h4><p>運行データがありません。</p>`;
             return;
         }
 
-        const stopName = window.stopLookup[stopId]?.name || "不明な停留所";
-        let html = `<div style="padding:10px;">
-                        <h3 style="margin:0 0 10px 0; border-bottom:2px solid #333;">${stopName}</h3>
-                        <table style="width:100%; border-collapse:collapse;">
-                            <thead>
-                                <tr style="background:#eee; font-size:12px;">
-                                    <th style="padding:5px; text-align:left;">時刻</th>
-                                    <th style="padding:5px; text-align:left;">運行会社</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
+        let html = `<h3>${stopName}</h3>`;
+        html += `<table style="width:100%; border-collapse:collapse; font-family:sans-serif;">`;
+        html += `<tr style="background:#eee;"><th>時刻</th><th>行先</th></tr>`;
         
-        timetableData.forEach(item => {
-            html += `<tr style="border-bottom:1px solid #ddd; font-size:14px;">
-                        <td style="padding:8px 5px;"><b>${item.time}</b></td>
-                        <td style="padding:8px 5px; color:#666;">${item.companyName}</td>
+        timetableData.forEach(row => {
+            html += `<tr style="border-bottom:1px solid #ddd;">
+                        <td style="padding:8px; font-weight:bold;">${row.time}</td>
+                        <td style="padding:8px;">${row.headsign} <small style="color:#999;">(${row.company})</small></td>
                      </tr>`;
         });
+        html += `</table>`;
 
-        html += `</tbody></table></div>`;
         container.innerHTML = html;
+        console.log("6. 表示完了");
 
     } catch (e) {
-        console.error("時刻表の取得に失敗しました:", e);
-        container.innerHTML = `<div style="padding:10px; color:red;">読み込みエラーが発生しました。</div>`;
+        console.error("致命的エラー:", e);
+        container.innerHTML = "時刻表の取得中にエラーが発生しました。";
     }
 };
 /**
