@@ -1,24 +1,16 @@
-// js/buses.js
 const busMarkers = {};
 
 /**
- * 会社ごとの色と枠線を持った四角形アイコンを生成する
+ * 会社ごとのアイコン生成
  */
 function createSquareIcon(companyId) {
     const isHirobus = (companyId === 'hirobus');
-    const bgColor = isHirobus ? '#FF0000' : '#ADFF2F'; // 広島バス: 赤, 広電: 黄緑
-    const borderColor = '#000000'; // どちらも黒枠
+    const bgColor = isHirobus ? '#FF0000' : '#ADFF2F'; 
+    const borderColor = '#000000';
 
     return L.divIcon({
         className: 'custom-bus-icon',
-        html: `<div style="
-            width: 16px; 
-            height: 16px; 
-            background-color: ${bgColor}; 
-            border: 2px solid ${borderColor};
-            border-radius: 2px;
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
-        "></div>`,
+        html: `<div style="width: 16px; height: 16px; background-color: ${bgColor}; border: 2px solid ${borderColor}; border-radius: 2px; box-shadow: 1px 1px 3px rgba(0,0,0,0.4);"></div>`,
         iconSize: [20, 20],
         iconAnchor: [10, 10],
         popupAnchor: [0, -10]
@@ -32,54 +24,36 @@ async function updateBusPositions() {
     const targetMap = window.map;
     const activeIds = new Set();
 
-    // 会社ごとにループしてデータを取得
     for (const company of activeCompanies) {
-        // Vercel APIを叩く (各社のIDをパラメータとして渡す)
         const realTimeUrl = `${company.realtimeUrl}&t=${Date.now()}`;
 
         try {
             const response = await fetch(realTimeUrl);
-            if (!response.ok) {
-                console.warn(`${company.name} のデータ取得に失敗しました`);
-                continue;
-            }
+            if (!response.ok) continue;
 
-            const rawText = await response.text();
-            let data;
-            try {
-                data = JSON.parse(rawText);
-            } catch (e) {
-                console.error(`${company.name} のJSONパース失敗`);
-                continue;
-            }
-
+            const data = await response.json();
             const entities = data.entity || [];
 
             // 1. tripUpdate辞書の作成
             const delayMap = {};
             entities.forEach(item => {
-                const update = item.tripUpdate;
-                if (update && update.trip && update.trip.tripId) {
-                    delayMap[update.trip.tripId] = update;
+                if (item.tripUpdate && item.tripUpdate.trip) {
+                    delayMap[item.tripUpdate.trip.tripId] = item.tripUpdate;
                 }
             });
 
-            // 2. 各車両の処理
-            entities.forEach(item => {
+            // 2. 各車両の並列処理準備
+            const vehiclePromises = entities.map(async (item) => {
                 const v = item.vehicle;
-                if (!v || !v.position) return;
+                if (!v || !v.position || !v.trip) return;
 
-                const rawTripId = v.trip ? v.trip.tripId : null;
-                // console.log(`[ID調査] リアルタイムTripID: "${rawTripId}" (Company: ${company.id})`);
-                const rawRouteId = (v.trip && v.trip.routeId) ? v.trip.routeId : (v.routeId || null);
-                
-                // 辞書引き用にプレフィックス付きIDを作成
-                const globalTripId = rawTripId ? `${company.id}_${rawTripId}` : null;
-                const globalRouteId = rawRouteId ? `${company.id}_${rawRouteId}` : null;
+                const rawTripId = v.trip.tripId;
+                const vehicleId = `${company.id}_${v.vehicle ? v.vehicle.id : (item.id || "no-id")}`;
+                activeIds.add(vehicleId);
 
                 // 遅延情報の計算
                 let delayText = "";
-                const myUpdate = rawTripId ? delayMap[rawTripId] : null;
+                const myUpdate = delayMap[rawTripId];
                 if (myUpdate && myUpdate.stopTimeUpdate) {
                     const foundUpdate = myUpdate.stopTimeUpdate.find(stu => 
                         (stu.departure && stu.departure.delay !== undefined) || 
@@ -88,77 +62,49 @@ async function updateBusPositions() {
                     if (foundUpdate) {
                         const event = foundUpdate.departure || foundUpdate.arrival;
                         const delayMin = Math.floor(event.delay / 60);
-                        if (delayMin > 0) {
-                            delayText = `<span style="background:#fff3cd; color:#856404; padding:2px 5px; border-radius:4px; font-size:0.85em; margin-left:5px;">${delayMin}分遅れ</span>`;
-                        } else if (delayMin < 0) {
-                            delayText = `<span style="background:#d1ecf1; color:#0c5460; padding:2px 5px; border-radius:4px; font-size:0.85em; margin-left:5px;">早着</span>`;
-                        } else {
-                            delayText = `<span style="background:#d4edda; color:#155724; padding:2px 5px; border-radius:4px; font-size:0.85em; margin-left:5px;">定時</span>`;
-                        }
+                        if (delayMin > 0) delayText = `<span style="background:#fff3cd; color:#856404; padding:2px 5px; border-radius:4px; font-size:0.85em; margin-left:5px;">${delayMin}分遅れ</span>`;
+                        else if (delayMin < 0) delayText = `<span style="background:#d1ecf1; color:#0c5460; padding:2px 5px; border-radius:4px; font-size:0.85em; margin-left:5px;">早着</span>`;
+                        else delayText = `<span style="background:#d4edda; color:#155724; padding:2px 5px; border-radius:4px; font-size:0.85em; margin-left:5px;">定時</span>`;
                     }
                 }
 
-                const lat = parseFloat(v.position.latitude);
-                const lon = parseFloat(v.position.longitude);
-                if (isNaN(lat) || isNaN(lon)) return;
+                // --- 重要：始発・行先を動的に判定 ---
+                let displayTitle = "運行中";
+                let displayOrigin = "不明";
+                const stops = await window.getFullTimetableForTrip(rawTripId, company.id);
 
-                // ユニークなID（会社名_車両ID）
-                const vehicleId = `${company.id}_${(v.vehicle && v.vehicle.id) ? v.vehicle.id : (item.id || "no-id")}`;
-                activeIds.add(vehicleId);
-
-                // 路線情報の取得
-                const jpInfo = (window.routeJpLookup && globalRouteId) ? window.routeJpLookup[globalRouteId] : null;
-                
-                let popupContent = "";
-                if (jpInfo) {
-                    const origin = (jpInfo.origin || "").trim();
-                    const dest = (jpInfo.dest || "").trim();
-                    const parentIdName = (jpInfo.jp_parent_route_id || "").trim();
-
-                    let displayDest = dest;
-                    let isLoop = false;
-                    if (origin === dest && parentIdName !== "") {
-                        displayDest = parentIdName;
-                        isLoop = true;
-                    }
-
-                    const titleText = isLoop ? displayDest : `${displayDest} 行`;
-                    const originHtml = isLoop ? "" : `<small>始発: ${origin}</small><br>`;
-                    const viaHtml = jpInfo.via ? `<small>経由: ${jpInfo.via}</small>` : "";
-
-                    popupContent = `
-                        <div style="min-width:160px;">
-                            <div style="font-size:0.8em; color:#666;">${company.name}</div>
-                            <b style="color:#e60012; font-size:1.1em;">${titleText}</b>${delayText}<br>
-                            <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                            ${originHtml}
-                            ${viaHtml}
-                        </div>
-                    `;
+                if (stops && stops.length > 0) {
+                    displayOrigin = stops[0].stopName;
+                    displayTitle = `${stops[stops.length - 1].stopName} 行`;
                 } else {
-                    popupContent = `${company.name} 運行中${delayText}`;
+                    const globalRouteId = `${company.id}_${v.trip.routeId}`;
+                    const jpInfo = window.routeJpLookup[globalRouteId];
+                    displayTitle = jpInfo ? `${jpInfo.dest} 行` : "運行中";
+                    displayOrigin = jpInfo ? jpInfo.origin : "始発不明";
                 }
 
-                // ポップアップのベースHTML（時刻表を表示する空のdivを追加）
                 const finalPopupHtml = `
                     <div id="popup-${vehicleId}" style="min-width:180px;">
-                        ${popupContent}
+                        <div style="font-size:0.8em; color:#666;">${company.name}</div>
+                        <b style="color:#e60012; font-size:1.1em;">${displayTitle}</b>${delayText}<br>
+                        <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                        <small>始発: ${displayOrigin}</small><br>
                         <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
                         <div class="trip-timetable-container" style="max-height:150px; overflow-y:auto; font-size:11px; color:#555;">
-                            <span style="color:#999;">クリックで全停留所の時刻表を表示</span>
+                            <span style="color:#999; cursor:pointer;">▶ クリックで停留所一覧を表示</span>
                         </div>
                     </div>
                 `;
 
+                const lat = parseFloat(v.position.latitude);
+                const lon = parseFloat(v.position.longitude);
+
                 // マーカーの作成または更新
                 if (busMarkers[vehicleId]) {
-                    busMarkers[vehicleId].setLatLng([lat, lon]);
-                    
-                    // 【改善】ポップアップが開いている間は、中身を上書きしない
-                    // これにより、読み込んだ時刻表が自動更新で消えるのを防ぎます
-                    const currentPopup = busMarkers[vehicleId].getPopup();
-                    if (!currentPopup.isOpen()) {
-                        busMarkers[vehicleId].setPopupContent(finalPopupHtml);
+                    const marker = busMarkers[vehicleId];
+                    marker.setLatLng([lat, lon]);
+                    if (!marker.getPopup().isOpen()) {
+                        marker.setPopupContent(finalPopupHtml);
                     }
                 } else {
                     const icon = createSquareIcon(company.id);
@@ -166,36 +112,25 @@ async function updateBusPositions() {
                         .addTo(targetMap)
                         .bindPopup(finalPopupHtml, { autoClose: false });
 
-                    // 【追加】クリックイベントで詳細時刻表をロード
                     marker.on('click', async () => {
-                        // 少し待ってからDOMを取得（Leafletのポップアップ描画待ち）
-                        await new Promise(r => setTimeout(r, 100));
+                        await new Promise(r => setTimeout(r, 150));
                         const container = document.querySelector(`#popup-${vehicleId} .trip-timetable-container`);
-                        if (!container) return;
+                        if (!container || container.innerHTML.includes('table')) return;
 
-                        container.innerHTML = "時刻表を読み込み中...";
-
-                        // timetable.js の関数を呼び出し
-                        const stops = await window.getFullTimetableForTrip(rawTripId, company.id);
+                        container.innerHTML = "読み込み中...";
+                        const stopsData = await window.getFullTimetableForTrip(rawTripId, company.id);
                         
-                        if (stops.length === 0) {
-                            container.innerHTML = "時刻表データがありません。";
+                        if (!stopsData || stopsData.length === 0) {
+                            container.innerHTML = "時刻表データがありません";
                             return;
                         }
 
-                        let tableHtml = `
-                            <table style="width:100%; border-collapse:collapse; margin-top:5px;">
-                                <tr style="background:#f8f9fa; position:sticky; top:0;">
-                                    <th style="text-align:left; padding:2px; border-bottom:1px solid #ddd;">停留所</th>
-                                    <th style="text-align:right; padding:2px; border-bottom:1px solid #ddd;">時刻</th>
-                                </tr>
-                        `;
-                        stops.forEach(s => {
-                            tableHtml += `
-                                <tr style="border-bottom:1px solid #f0f0f0;">
-                                    <td style="padding:3px 2px;">${s.stopName}</td>
-                                    <td style="padding:3px 2px; text-align:right; white-space:nowrap;">${s.time}</td>
-                                </tr>`;
+                        let tableHtml = `<table style="width:100%; border-collapse:collapse; margin-top:5px;">`;
+                        stopsData.forEach(s => {
+                            tableHtml += `<tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:3px 0;">${s.stopName}</td>
+                                <td style="padding:3px 0; text-align:right;">${s.time}</td>
+                            </tr>`;
                         });
                         tableHtml += `</table>`;
                         container.innerHTML = tableHtml;
@@ -203,11 +138,12 @@ async function updateBusPositions() {
 
                     busMarkers[vehicleId] = marker;
                 }
-            // --- ここまで ---
             });
 
+            await Promise.all(vehiclePromises);
+
         } catch (error) {
-            console.error(`${company.name} の更新エラー:`, error);
+            console.error(`${company.name} 更新エラー:`, error);
         }
     }
 
