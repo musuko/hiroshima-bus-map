@@ -60,24 +60,16 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
 }
 
 function filterAndProcessTimetable(data, companyId) {
-    const now = new Date();
-    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
-
-    // 念のため window.activeServiceIds が存在するかチェック
-    if (!window.activeServiceIds) {
-        console.error("activeServiceIds が初期化されていません");
-        return [];
-    }
+    if (!window.activeServiceIds) return [];
 
     return data
         .map(item => {
             const globalTripId = `${companyId}_${item.tripId}`;
             const tripData = window.tripLookup[globalTripId];
 
-            // --- デバッグポイント ---
             if (!tripData) return null;
 
-            // サービスIDが一致するか判定
+            // 判定用ログ（あまりに多いと重いので、最初の数件だけ出すなど調整可）
             const isActive = window.activeServiceIds.has(tripData.serviceId);
             
             if (!isActive) return null; 
@@ -100,6 +92,12 @@ function filterAndProcessTimetable(data, companyId) {
             };
         })
         .filter(item => item !== null)
+        // 一旦、現在時刻フィルターをコメントアウトして「今日の全便」を表示させてみます
+        // .filter(item => {
+        //    const now = new Date();
+        //    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        //    return item.time >= currentTime;
+        // })
         .sort((a, b) => a.time.localeCompare(b.time));
 }
 
