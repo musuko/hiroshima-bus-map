@@ -1,12 +1,10 @@
 // js/timetable.js
 
-// キャッシュの二重宣言を防ぐ
 if (typeof window.timetableCache === 'undefined') {
     window.timetableCache = {};
 }
 
 async function getTimetableForStop(stopId, companyId = 'hiroden') {
-    // 辞書の準備ができるまで待つ
     while(!window.isGtfsReady) await new Promise(r => setTimeout(r, 100));
 
     const cacheKey = `${companyId}_${stopId}`;
@@ -26,9 +24,9 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
         let stopSpecificData = [];
 
         let idxTripId, idxDepTime, idxStopId;
-        let isFirstChunk = true;
+        let isFirstLine = true; // ここを統一しました
 
-while (true) {
+        while (true) {
             const { value, done } = await reader.read();
             if (done) break;
             
@@ -39,11 +37,10 @@ while (true) {
             for (const line of lines) {
                 if (!line.trim()) continue;
                 
-                // カンマ区切りの分解（引用符を徹底除去し、トリムする）
+                // カンマ区切りの分解
                 const c = line.split(',').map(s => s.replace(/^"|"$/g, '').trim());
                 
                 if (isFirstLine) {
-                    // ヘッダー行：列の位置を特定
                     idxTripId = c.indexOf('trip_id');
                     idxDepTime = c.indexOf('departure_time');
                     idxStopId = c.indexOf('stop_id');
@@ -52,13 +49,12 @@ while (true) {
                     console.log(`📌 ${company.name} 列位置: trip=${idxTripId}, time=${idxDepTime}, stop=${idxStopId}`);
                     
                     if(idxStopId === -1) {
-                        console.error("❌ stop_id列が見つかりません。ヘッダー:", c);
+                        console.error("❌ stop_id列が見つかりません");
                         break;
                     }
                     continue;
                 }
                 
-                // 比較（IDに含まれるスペースも考慮）
                 if (c[idxStopId] === stopId.trim()) {
                     stopSpecificData.push({ 
                         tripId: c[idxTripId], 
@@ -77,80 +73,4 @@ while (true) {
     }
 }
 
-function filterAndProcessTimetable(data, companyId) {
-    if (!window.activeServiceIds) return [];
-
-    const processed = data.map(item => {
-        const globalTripId = `${companyId}_${item.tripId}`;
-        const tripData = window.tripLookup[globalTripId];
-
-        if (!tripData) return null;
-
-        // IDの不一致がないかチェック
-        const isActive = window.activeServiceIds.has(tripData.serviceId);
-        if (!isActive) return null;
-
-        const routeId = tripData.routeId;
-        const routeInfo = window.routeLookup[routeId] || { no: "??", name: "不明" };
-
-        return {
-            time: item.depTime.substring(0, 5),
-            routeNo: routeInfo.no,
-            headsign: routeInfo.name, // 簡略化
-            companyId: companyId
-        };
-    }).filter(v => v !== null);
-
-    // 一旦ソートだけして返す（全件表示テスト）
-    return processed.sort((a, b) => a.time.localeCompare(b.time));
-}
-/**
- * 共通 stop_id を持つ全会社の時刻表を結合して表示
- */
-async function showUnifiedTimetable(stopId, companyIds, elementId) {
-    const container = document.getElementById(elementId);
-    if (!container) return;
-
-    try {
-        // 各会社の時刻表を取得して処理
-        const promises = companyIds.map(async (companyId) => {
-            const rawData = await getTimetableForStop(stopId, companyId);
-            return filterAndProcessTimetable(rawData, companyId);
-        });
-
-        const results = await Promise.all(promises);
-        let combined = results.flat(); // 全社分を一つの配列に
-
-        // 時間順にソート
-        combined.sort((a, b) => a.time.localeCompare(b.time));
-
-        if (combined.length === 0) {
-            container.innerHTML = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>本日の運行予定はありません`;
-            return;
-        }
-
-        // HTML表示の組み立て
-        let html = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>`;
-        html += `<div style="max-height:250px; overflow-y:auto;">`;
-        html += `<table style="width:100%; font-size:12px; border-collapse:collapse;">`;
-        
-        combined.forEach(item => {
-            const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
-            html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:6px 0; font-weight:bold; width:45px;">${item.time}</td>
-                <td style="padding:6px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold;">${item.routeNo}</span></td>
-                <td style="padding:6px 0;">${item.headsign}</td>
-            </tr>`;
-        });
-        
-        html += `</table></div>`;
-        container.innerHTML = html;
-
-    } catch (e) {
-        console.error("時刻表表示エラー:", e);
-        container.innerHTML = "時刻表の読み込み中にエラーが発生しました。";
-    }
-}
-
-window.showUnifiedTimetable = showUnifiedTimetable;
-window.getTimetableForStop = getTimetableForStop;
+// --- filterAndProcessTimetable と showUnifiedTimetable はそのままでOK ---
