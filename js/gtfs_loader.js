@@ -1,70 +1,19 @@
-// js/gtfs_loader.js
-window.tripLookup = {};
-window.routeLookup = {};
-window.routeJpLookup = {};
-window.isGtfsReady = false;
+// js/timetable.js
+const timetableCache = {};
 
-async function prepareAllGtfsData() {
+async function getTimetableForStop(stopId) {
+    // 準備ができるまで待機
+    while(!window.isGtfsReady) await new Promise(r => setTimeout(r, 100));
+
+    if (timetableCache[stopId]) return filterAndProcessTimetable(timetableCache[stopId]);
+
+    // 【課題】会社をまたぐ検索をどうするか？
+    // 今はまず、configの最初の会社（広電など）を見に行くようにします
+    const mainCompany = BUS_COMPANIES[0]; 
+    
     try {
-        const activeCompanies = BUS_COMPANIES.filter(c => c.active);
-        
-        for (const company of activeCompanies) {
-            console.log(`📦 読み込み中: ${company.name}`);
-            
-            const [rRes, tRes, rJpRes] = await Promise.all([
-                fetch(`${company.staticPath}routes.txt`),
-                fetch(`${company.staticPath}trips.txt`),
-                fetch(`${company.staticPath}routes_jp.txt`)
-            ]);
-
-            const [rText, tText, rJpText] = await Promise.all([
-                rRes.text(), tRes.text(), rJpText.text()
-            ]);
-
-            // CSV解析共通処理
-            const parse = (text, callback) => {
-                const lines = text.trim().split(/\r?\n/);
-                const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                for (let i = 1; i < lines.length; i++) {
-                    const columns = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                    callback(columns, head);
-                }
-            };
-
-            // routes解析
-            parse(rText, (c, head) => {
-                const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.routeLookup[globalId] = {
-                    no: c[head.indexOf('route_short_name')],
-                    name: c[head.indexOf('route_long_name')],
-                    companyId: company.id
-                };
-            });
-
-            // trips解析
-            parse(tText, (c, head) => {
-                const globalTripId = `${company.id}_${c[head.indexOf('trip_id')]}`;
-                const globalRouteId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.tripLookup[globalTripId] = globalRouteId;
-            });
-
-            // routes_jp解析
-            parse(rJpText, (c, head) => {
-                const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.routeJpLookup[globalId] = {
-                    origin: c[head.indexOf('origin_stop')],
-                    dest: c[head.indexOf('destination_stop')],
-                    jp_parent_route_id: c[head.indexOf('jp_parent_route_id')]
-                };
-            });
-        }
-
-        window.isGtfsReady = true;
-        console.log("✅ 全社の辞書統合が完了しました");
-    } catch (e) {
-        console.error("GTFS読み込みエラー:", e);
-    }
+        const response = await fetch(`${mainCompany.staticPath}stop_times.txt`);
+        // ... (ここから下のストリーム読み込みロジックは以前と同じ)
+        // ただし、tripId を `${mainCompany.id}_${columns[idxTripId]}` に変換して保存
+    } catch (e) { console.error(e); return []; }
 }
-
-// 実行
-prepareAllGtfsData();
