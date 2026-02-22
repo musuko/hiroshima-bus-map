@@ -1,83 +1,87 @@
 // js/stops.js
 
-async function loadStopsFromTxt(mapInstance) { // 関数名も実態に合わせて変更
-    // 引数がない場合は window.map を、それもなければエラー
-    const targetMap = mapInstance || window.map;
+async function loadAllStops() {
+    if (!window.map) return;
     
-    if (!targetMap) {
-        console.error('地図オブジェクトが見つかりません。');
-        return;
-    }
+    const activeCompanies = BUS_COMPANIES.filter(c => c.active);
+    const stopMap = {}; // 「緯度_経度」をキーにして統合する辞書
 
-    // パスを .txt に変更
-    const txtPath = './info/hiroden/stops.txt';
-
-    try {
-        const response = await fetch(txtPath);
-        const txtContent = await response.text();
-        
-        // 行に分割（空行を除去）
-        const rows = txtContent.trim().split(/\r?\n/).filter(row => row.length > 0);
-        
-        // ヘッダー解析（引用符を除去してインデックスを取得）
-        const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        const idxLat = headers.indexOf('stop_lat');
-        const idxLon = headers.indexOf('stop_lon');
-        const idxName = headers.indexOf('stop_name');
-        const idxId = headers.indexOf('stop_id');
-
-        console.log("読み込み開始:", txtPath);
-
-        rows.slice(1).forEach((row) => {
-            // カンマで分割し、各項目の前後の空白とダブルクォートを除去
-            const columns = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    for (const company of activeCompanies) {
+        try {
+            const filePath = `${company.staticPath}stops.txt`;
+            console.log(`📍 読み込み開始: ${filePath}`);
             
-            const lat = parseFloat(columns[idxLat]);
-            const lon = parseFloat(columns[idxLon]);
-            const name = columns[idxName];
-            const stopId = columns[idxId];
+            const response = await fetch(filePath);
+            if (!response.ok) continue;
 
-            if (!isNaN(lat) && !isNaN(lon)) {
-                // 円形マーカーの設定
-                L.circleMarker([lat, lon], {
-                    radius: 8,
-                    fillColor: "#28a745", // 広電風グリーン
-                    fillOpacity: 0.8,
-                    color: "transparent", 
-                    weight: 20,           // クリック判定エリア
-                    stroke: true,
-                })
-                .addTo(targetMap)
-                .bindPopup(`<b>${name}</b><br>ID: ${stopId}`)
-                .on('click', async (e) => {
-                    const marker = e.target;
-                    marker.setPopupContent(`<b>${name}</b><br><div style="text-align:center;">⌛ 時刻表を検索中...</div>`);
-                    
-                    // 新しくなった getTimetableForStop を呼び出し
-                    const times = await getTimetableForStop(stopId);
-                    
-                    if (times.length > 0) {
-                        // オブジェクトの配列 [ {time, routeNo, headsign}, ... ] を HTML に変換
-                        const nextBuses = times.slice(0, 5).map(t => 
-                            `<li><b>${t.time.substring(0, 5)}</b> [${t.routeNo}] ${t.name || t.headsign}</li>`
-                        ).join('');
+            const text = await response.text();
+            const lines = text.trim().split(/\r?\n/);
+            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
 
-                        marker.setPopupContent(`
-                            <b>${name}</b><br>
-                            <small style="color:#666;">ID: ${stopId}</small><hr style="margin:8px 0;">
-                            これからの出発予定:
-                            <ul style="margin:8px 0; padding-left:0; list-style:none;">${nextBuses}</ul>
-                        `);
-                    } else {
-                        marker.setPopupContent(`<b>${name}</b><br><small>ID: ${stopId}</small><hr>本日の運行は終了、またはデータがありません。`);
-                    }
+            lines.slice(1).forEach(line => {
+                const c = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                const name = c[head.indexOf('stop_name')];
+                const lat = c[head.indexOf('stop_lat')];
+                const lon = c[head.indexOf('stop_lon')];
+                const id = c[head.indexOf('stop_id')];
+
+                if (!name || !lat || !lon) return;
+
+                // --- 座標をキーにする（文字列として結合） ---
+                // 例: "34.397_132.475"
+                const geoKey = `${lat}_${lon}`;
+
+                if (!stopMap[geoKey]) {
+                    stopMap[geoKey] = {
+                        name: name,
+                        lat: parseFloat(lat),
+                        lon: parseFloat(lon),
+                        companyStops: [] 
+                    };
+                }
+                
+                // 同じ座標にあるバス停情報を追加
+                stopMap[geoKey].companyStops.push({
+                    companyId: company.id,
+                    stopId: id
                 });
-            }
-        });
-
-        console.log(`成功: ${rows.length - 1}件のバス停を表示しました。`);
-
-    } catch (error) {
-        console.error('stops.js: 読込エラー:', error);
+            });
+        } catch (e) {
+            console.error(`${company.name} のバス停取得失敗:`, e);
+        }
     }
+
+    renderMergedStops(stopMap);
 }
+
+function renderMergedStops(stopMap) {
+    const targetMap = window.map;
+    const stopsArray = Object.values(stopMap);
+
+    stopsArray.forEach(stop => {
+        // 同じ場所にあるバス停が複数の会社にまたがっているかチェック
+        const isShared = stop.companyStops.length > 1;
+
+        const marker = L.circleMarker([stop.lat, stop.lon], {
+            radius: 7,
+            fillColor: "#ffffff",
+            // 複数社が共有しているバス停は色を変える（例：オレンジ）なども可能
+            color: isShared ? "#ff8c00" : "#3388ff", 
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).addTo(targetMap);
+
+        marker.on('click', async () => {
+            const popupContent = `<div style="min-width:200px;"><strong>${stop.name}</strong><br><hr>読込中...</div>`;
+            marker.bindPopup(popupContent).openPopup();
+            
+            // 統合時刻表の表示（この座標にある全stopIdを対象にする）
+            showUnifiedTimetable(stop);
+        });
+    });
+
+    console.log(`✅ ${stopsArray.length} 地点のバス停（座標一致のみ統合）を表示しました`);
+}
+
+loadAllStops();
