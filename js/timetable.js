@@ -5,7 +5,8 @@ let routeJpLookup = {};
 let isGtfsReady = false;
 
 // 【高速化】一度読み込んだバス停の全データをメモリに保持するキャッシュ
-const timetableCache = {};
+window.timetableCache = window.timetableCache || {};
+const timetableCache = window.timetableCache;
 
 async function prepareGtfsData() {
     try {
