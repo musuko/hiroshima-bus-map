@@ -8,7 +8,11 @@ window.activeDisplayStopId = "";
 /**
  * バス停用の時刻表データを取得する (欠落していた関数)
  */
-async function getTimetableForStop(stopId, companyId = 'hiroden') {
+async function getFullTimetableForTrip(tripId, companyId) {
+    // 1. まず詳細データがロードされているか確認し、なければロード
+    await loadDetailedGtfsIfNeeded(companyId);
+
+    // 2. その後、本来の時刻表検索を開始
     const cacheKey = `${companyId}_${stopId}`;
     if (window.timetableDataStore[cacheKey]) {
         return filterAndProcessTimetable(window.timetableDataStore[cacheKey], companyId);
