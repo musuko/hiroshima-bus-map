@@ -28,31 +28,47 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
         let idxTripId, idxDepTime, idxStopId;
         let isFirstChunk = true;
 
-        while (true) {
+while (true) {
             const { value, done } = await reader.read();
             if (done) break;
+            
             partialData += decoder.decode(value, { stream: true });
             const lines = partialData.split(/\r?\n/);
-            partialData = lines.pop();
+            partialData = lines.pop(); 
 
             for (const line of lines) {
                 if (!line.trim()) continue;
-                const c = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                if (isFirstChunk) {
+                
+                // カンマ区切りの分解（引用符を徹底除去し、トリムする）
+                const c = line.split(',').map(s => s.replace(/^"|"$/g, '').trim());
+                
+                if (isFirstLine) {
+                    // ヘッダー行：列の位置を特定
                     idxTripId = c.indexOf('trip_id');
                     idxDepTime = c.indexOf('departure_time');
                     idxStopId = c.indexOf('stop_id');
-                    isFirstChunk = false;
+                    isFirstLine = false;
+                    
+                    console.log(`📌 ${company.name} 列位置: trip=${idxTripId}, time=${idxDepTime}, stop=${idxStopId}`);
+                    
+                    if(idxStopId === -1) {
+                        console.error("❌ stop_id列が見つかりません。ヘッダー:", c);
+                        break;
+                    }
                     continue;
                 }
                 
-                // 前後の空白を削除して比較（72820 0 などのスペース対策）
-                if (c[idxStopId] && c[idxStopId].trim() === stopId.trim()) {
-                    stopSpecificData.push({ tripId: c[idxTripId], depTime: c[idxDepTime] });
+                // 比較（IDに含まれるスペースも考慮）
+                if (c[idxStopId] === stopId.trim()) {
+                    stopSpecificData.push({ 
+                        tripId: c[idxTripId], 
+                        depTime: c[idxDepTime] 
+                    });
                 }
             }
         }
 
+        console.log(`📊 ${company.name} 結果: ${stopSpecificData.length} 件抽出成功 (検索ID: ${stopId})`);
         window.timetableCache[cacheKey] = stopSpecificData;
         return filterAndProcessTimetable(stopSpecificData, companyId);
     } catch (e) {
