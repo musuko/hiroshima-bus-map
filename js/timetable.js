@@ -68,16 +68,11 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
 }
 
 function filterAndProcessTimetable(data, companyId) {
-    console.log(`🛠 フィルタリング開始: ${companyId} (${data.length}件)`);
-    if (!window.activeServiceIds || !window.tripLookup) {
-        console.warn("⚠️ 辞書が準備できていません");
-        return [];
-    }
+    if (!window.activeServiceIds || !window.tripLookup) return [];
 
     const processed = data.map(item => {
         const globalTripId = `${companyId}_${item.tripId}`;
         const tripData = window.tripLookup[globalTripId];
-
         if (!tripData) return null;
 
         const isActive = window.activeServiceIds.has(tripData.serviceId);
@@ -94,69 +89,45 @@ function filterAndProcessTimetable(data, companyId) {
         };
     }).filter(v => v !== null);
 
-    console.log(`✨ フィルタリング後: ${processed.length} 件`);
     return processed.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-// showUnifiedTimetable は以前のままでOKですが、
-// コンテナの中身が空の時の表示だけ少し詳細にします
+// --- showUnifiedTimetable の修正（0件の時も必ず書き換える） ---
 async function showUnifiedTimetable(stopId, companyIds, elementId) {
-    // 1. 表示先の要素を取得（見つかるまで最大5回待機）
     let container = document.getElementById(elementId);
-    if (!container) {
-        for(let i=0; i<5; i++) {
-            await new Promise(r => setTimeout(r, 100));
-            container = document.getElementById(elementId);
-            if(container) break;
-        }
-    }
-    
-    if (!container) {
-        console.error(`❌ 表示先要素 #${elementId} が見つかりません`);
-        return;
-    }
+    if (!container) return;
 
-    // 元の駅名を保持（読み込み中... の文字を消さないように）
-    const stopNameElement = container.querySelector('strong');
-    const stopName = stopNameElement ? stopNameElement.innerText : "時刻表";
+    // 現在の「読み込み中...」という文字を含んだ中身を退避
+    const originalHeader = container.querySelector('strong') ? container.querySelector('strong').outerHTML : "<strong>時刻表</strong>";
 
     try {
-        // 2. 各会社のデータを並列取得
         const promises = companyIds.map(cid => getTimetableForStop(stopId, cid));
         const results = await Promise.all(promises);
-        
         let combined = results.flat();
+        
         combined.sort((a, b) => a.time.localeCompare(b.time));
 
-        // 3. HTMLの構築
         if (combined.length === 0) {
-            container.innerHTML = `<strong>${stopName}</strong><br><hr>本日の運行予定はありません<br><small style="color:gray;">(ID: ${stopId})</small>`;
+            // ★ここが重要：0件の時は「読み込み中」を消してメッセージを出す
+            container.innerHTML = `${originalHeader}<br><hr><div style="padding:10px; color:gray;">本日の運行予定はありません<br><small>(StopID: ${stopId})</small></div>`;
             return;
         }
 
-        let html = `<strong>${stopName}</strong><br><hr>`;
-        html += `<div style="max-height:250px; overflow-y:auto;">`;
-        html += `<table style="width:100%; font-size:12px; border-collapse:collapse; background:white;">`;
-        
+        let html = `${originalHeader}<br><hr><div style="max-height:250px; overflow-y:auto;"><table style="width:100%; font-size:12px; border-collapse:collapse;">`;
         combined.forEach(item => {
             const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
             html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:8px 0; font-weight:bold; width:45px; color:#333;">${item.time}</td>
-                <td style="padding:8px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold; font-size:10px;">${item.routeNo}</span></td>
-                <td style="padding:8px 0; color:#444;">${item.headsign}</td>
+                <td style="padding:6px 0; font-weight:bold; width:45px;">${item.time}</td>
+                <td style="padding:6px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold;">${item.routeNo}</span></td>
+                <td style="padding:6px 0;">${item.headsign}</td>
             </tr>`;
         });
-        
         html += `</table></div>`;
-        
-        // 4. 反映（念のためもう一度存在チェック）
-        if (document.getElementById(elementId)) {
-            container.innerHTML = html;
-        }
+        container.innerHTML = html;
 
     } catch (e) {
         console.error("表示エラー:", e);
-        container.innerHTML = `<strong>${stopName}</strong><br><hr>時刻表の表示中にエラーが発生しました。`;
+        container.innerHTML = "時刻表エラーが発生しました。";
     }
 }
 window.showUnifiedTimetable = showUnifiedTimetable;
