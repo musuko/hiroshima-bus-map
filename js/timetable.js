@@ -61,81 +61,101 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
 
 function filterAndProcessTimetable(data, companyId) {
     const now = new Date();
+    // 現在時刻（HH:mm:ss）
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
 
     return data
-        .filter(item => {
-            const t = item.depTime;
-            return t >= currentTimeStr || t.startsWith('24') || t.startsWith('25');
-        })
         .map(item => {
             const globalTripId = `${companyId}_${item.tripId}`;
-            const globalRouteId = window.tripLookup[globalTripId];
-            const routeInfo = window.routeLookup[globalRouteId] || { no: "??", name: "不明" };
-            const jpInfo = window.routeJpLookup[globalRouteId];
-            
-            let headsign = routeInfo.name;
+            const tripData = window.tripLookup[globalTripId];
+
+            // 1. 今日の運行スケジュール（service_id）に含まれているかチェック
+            if (!tripData || !window.activeServiceIds.has(tripData.serviceId)) {
+                return null; // 今日は走らない便
+            }
+
+            // 2. 路線情報を取得 (tripData.routeId を使用)
+            const routeId = tripData.routeId;
+            const routeInfo = window.routeLookup[routeId] || { no: "??", name: "不明" };
+            const jpInfo = window.routeJpLookup[routeId];
+
+            // 3. 行先（ヘッドサイン）の作成
+            let headsign = item.headsign || routeInfo.name;
             if (jpInfo) {
-                const origin = (jpInfo.origin || "").trim();
                 const dest = (jpInfo.dest || "").trim();
-                const parentIdName = (jpInfo.jp_parent_route_id || "").trim();
-                if (origin === dest && parentIdName !== "") headsign = parentIdName;
+                const parentName = (jpInfo.jp_parent_route_id || "").trim();
+                const origin = (jpInfo.origin || "").trim();
+                
+                // 循環路線の判定
+                if (origin === dest && parentName !== "") {
+                    headsign = parentName;
+                } else {
+                    headsign = dest ? `${dest} 行` : headsign;
+                }
             }
 
             return {
-                time: item.depTime.substring(0, 5),
+                time: item.depTime.substring(0, 5), // "12:30:00" -> "12:30"
                 routeNo: routeInfo.no,
                 headsign: headsign,
                 companyId: companyId
             };
         })
+        .filter(item => item !== null) // 無効な便を除去
+        .filter(item => {
+            // 現在時刻より後のもの、または深夜便を表示
+            return item.time >= currentTimeStr.substring(0, 5) || item.time.startsWith('24') || item.time.startsWith('25');
+        })
         .sort((a, b) => a.time.localeCompare(b.time));
 }
-// js/timetable.js の末尾付近に追加
 
 /**
- * 共通 stop_id を持つ全会社の時刻表を取得し、結合して表示する
+ * 共通 stop_id を持つ全会社の時刻表を結合して表示
  */
 async function showUnifiedTimetable(stopId, companyIds, elementId) {
     const container = document.getElementById(elementId);
-    
-    // 全会社分の時刻表を並列で取得
-    const promises = companyIds.map(companyId => getTimetableForStop(stopId, companyId));
-    const results = await Promise.all(promises);
+    if (!container) return;
 
-    // 全社のデータを一つの配列に合体
-    let combined = [];
-    results.forEach(list => {
-        combined = combined.concat(list);
-    });
+    try {
+        // 各会社の時刻表を取得して処理
+        const promises = companyIds.map(async (companyId) => {
+            const rawData = await getTimetableForStop(stopId, companyId);
+            return filterAndProcessTimetable(rawData, companyId);
+        });
 
-    // 時間順にソート
-    combined.sort((a, b) => a.time.localeCompare(b.time));
+        const results = await Promise.all(promises);
+        let combined = results.flat(); // 全社分を一つの配列に
 
-    if (combined.length === 0) {
-        container.innerHTML = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>運行予定はありません`;
-        return;
+        // 時間順にソート
+        combined.sort((a, b) => a.time.localeCompare(b.time));
+
+        if (combined.length === 0) {
+            container.innerHTML = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>本日の運行予定はありません`;
+            return;
+        }
+
+        // HTML表示の組み立て
+        let html = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>`;
+        html += `<div style="max-height:250px; overflow-y:auto;">`;
+        html += `<table style="width:100%; font-size:12px; border-collapse:collapse;">`;
+        
+        combined.forEach(item => {
+            const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
+            html += `<tr style="border-bottom:1px solid #eee;">
+                <td style="padding:6px 0; font-weight:bold; width:45px;">${item.time}</td>
+                <td style="padding:6px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold;">${item.routeNo}</span></td>
+                <td style="padding:6px 0;">${item.headsign}</td>
+            </tr>`;
+        });
+        
+        html += `</table></div>`;
+        container.innerHTML = html;
+
+    } catch (e) {
+        console.error("時刻表表示エラー:", e);
+        container.innerHTML = "時刻表の読み込み中にエラーが発生しました。";
     }
-
-    // HTMLの組み立て
-    let html = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>`;
-    html += `<div style="max-height:200px; overflow-y:auto;">`;
-    html += `<table style="width:100%; font-size:12px; border-collapse:collapse;">`;
-    
-    combined.forEach(item => {
-        // 会社ごとに色を変える（広電:黄緑, 広バス:赤）
-        const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
-        html += `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:4px 0;">${item.time}</td>
-            <td style="padding:4px 2px;"><span style="background:${color}; color:#fff; padding:1px 3px; border-radius:3px;">${item.routeNo}</span></td>
-            <td style="padding:4px 0;">${item.headsign}</td>
-        </tr>`;
-    });
-    
-    html += `</table></div>`;
-    container.innerHTML = html;
 }
 
-// 外から呼べるように登録
 window.showUnifiedTimetable = showUnifiedTimetable;
 window.getTimetableForStop = getTimetableForStop;
