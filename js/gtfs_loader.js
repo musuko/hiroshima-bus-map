@@ -54,13 +54,18 @@ async function prepareAllGtfsData() {
                 }
             });
 
-            parse(cdText, (c, head) => {
+            // gtfs_loader.js の calendar 解析部分付近
+            parse(cText, (c, head) => {
                 const sid = c[head.indexOf('service_id')];
-                const date = c[head.indexOf('date')];
-                const type = c[head.indexOf('exception_type')];
-                if (date === todayStr) {
-                    if (type === '1') window.activeServiceIds.add(`${company.id}_${sid}`);
-                    if (type === '2') window.activeServiceIds.delete(`${company.id}_${sid}`);
+                const startDate = c[head.indexOf('start_date')];
+                const endDate = c[head.indexOf('end_date')];
+                const isDayOn = c[head.indexOf(todayDayName)] === '1';
+            
+                if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
+                    const globalSid = `${company.id}_${sid}`;
+                    window.activeServiceIds.add(globalSid);
+                    // デバッグログ：有効になったIDをコンソールに出す
+                    console.log(`📅 有効なスケジュール: ${globalSid}`);
                 }
             });
 
