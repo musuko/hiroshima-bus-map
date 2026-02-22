@@ -82,11 +82,12 @@ async function prepareAllGtfsData() {
             parse(tText, (c, head) => {
                 const tripId = c[head.indexOf('trip_id')];
                 const routeId = c[head.indexOf('route_id')];
-                const serviceId = c[head.indexOf('service_id')]; // ここはまだ生データ
+                const serviceId = c[head.indexOf('service_id')];
             
                 const globalTripId = `${company.id}_${tripId}`;
                 const globalRouteId = `${company.id}_${routeId}`;
-                const globalServiceId = `${company.id}_${serviceId}`; // ここで会社名を付ける！
+                // ここが重要：calendar.txtと合わせるために会社IDを付与
+                const globalServiceId = `${company.id}_${serviceId}`; 
                 
                 window.tripLookup[globalTripId] = { 
                     routeId: globalRouteId, 
