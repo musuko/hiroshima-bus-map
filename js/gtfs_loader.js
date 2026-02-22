@@ -80,14 +80,17 @@ async function prepareAllGtfsData() {
             });
 
             parse(tText, (c, head) => {
-                const globalTripId = `${company.id}_${c[head.indexOf('trip_id')]}`;
-                const globalRouteId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                const sid = `${company.id}_${c[head.indexOf('service_id')]}`;
+                const tripId = c[head.indexOf('trip_id')];
+                const routeId = c[head.indexOf('route_id')];
+                const serviceId = c[head.indexOf('service_id')]; // ここはまだ生データ
+            
+                const globalTripId = `${company.id}_${tripId}`;
+                const globalRouteId = `${company.id}_${routeId}`;
+                const globalServiceId = `${company.id}_${serviceId}`; // ここで会社名を付ける！
                 
-                // serviceIdも含めて保存するように変更
                 window.tripLookup[globalTripId] = { 
                     routeId: globalRouteId, 
-                    serviceId: `${company.id}_${sid}` 
+                    serviceId: globalServiceId 
                 };
             });
 
