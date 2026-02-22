@@ -91,5 +91,51 @@ function filterAndProcessTimetable(data, companyId) {
         })
         .sort((a, b) => a.time.localeCompare(b.time));
 }
+// js/timetable.js の末尾付近に追加
 
+/**
+ * 共通 stop_id を持つ全会社の時刻表を取得し、結合して表示する
+ */
+async function showUnifiedTimetable(stopId, companyIds, elementId) {
+    const container = document.getElementById(elementId);
+    
+    // 全会社分の時刻表を並列で取得
+    const promises = companyIds.map(companyId => getTimetableForStop(stopId, companyId));
+    const results = await Promise.all(promises);
+
+    // 全社のデータを一つの配列に合体
+    let combined = [];
+    results.forEach(list => {
+        combined = combined.concat(list);
+    });
+
+    // 時間順にソート
+    combined.sort((a, b) => a.time.localeCompare(b.time));
+
+    if (combined.length === 0) {
+        container.innerHTML = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>運行予定はありません`;
+        return;
+    }
+
+    // HTMLの組み立て
+    let html = `<strong>${container.querySelector('strong').innerText}</strong><br><hr>`;
+    html += `<div style="max-height:200px; overflow-y:auto;">`;
+    html += `<table style="width:100%; font-size:12px; border-collapse:collapse;">`;
+    
+    combined.forEach(item => {
+        // 会社ごとに色を変える（広電:黄緑, 広バス:赤）
+        const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
+        html += `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:4px 0;">${item.time}</td>
+            <td style="padding:4px 2px;"><span style="background:${color}; color:#fff; padding:1px 3px; border-radius:3px;">${item.routeNo}</span></td>
+            <td style="padding:4px 0;">${item.headsign}</td>
+        </tr>`;
+    });
+    
+    html += `</table></div>`;
+    container.innerHTML = html;
+}
+
+// 外から呼べるように登録
+window.showUnifiedTimetable = showUnifiedTimetable;
 window.getTimetableForStop = getTimetableForStop;
