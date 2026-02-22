@@ -8,14 +8,7 @@ window.activeDisplayStopId = "";
 /**
  * バス停用の時刻表データを取得する (既存の機能)
  */
-async function getTimetableForStop(stopId, companyId = 'hiroden') {
-    const cacheKey = `${companyId}_${stopId}`;
-    if (window.timetableDataStore[cacheKey]) {
-        // キャッシュがあってもDOM描画を待つために微小な待機
-        await new Promise(r => setTimeout(r, 10)); 
-        return filterAndProcessTimetable(window.timetableDataStore[cacheKey], companyId);
-    }
-
+async function getFullTimetableForTrip(tripId, companyId) {
     try {
         const company = BUS_COMPANIES.find(c => c.id === companyId);
         if (!company) return [];
@@ -26,28 +19,43 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
         
         const header = lines[0].split(',').map(s => s.replace(/^"|"$/g, '').trim());
         const idxTripId = header.indexOf('trip_id');
-        const idxDepTime = header.indexOf('departure_time');
+        const idxArrivalTime = header.indexOf('arrival_time');
         const idxStopId = header.indexOf('stop_id');
+        const idxStopSeq = header.indexOf('stop_sequence');
 
-        let stopSpecificData = [];
+        let tripStops = [];
+
+        // デバッグ用：検索するIDをログ出力
+        console.log(`Searching Static for: ${tripId}`);
+
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
             const c = lines[i].split(',').map(s => s.replace(/^"|"$/g, '').trim());
-            if (c[idxStopId] === stopId.trim()) {
-                stopSpecificData.push({ 
-                    tripId: c[idxTripId], 
-                    depTime: c[idxDepTime] 
+            
+            // IDが完全一致するか、リアルタイムIDがファイル内IDに含まれているか（部分一致）
+            if (c[idxTripId] === tripId || c[idxTripId].includes(tripId)) {
+                const stopId = c[idxStopId];
+                
+                // 【重要：修正箇所】stopLookupの存在チェックを厳重に
+                let stopName = `不明な停留所 (${stopId})`;
+                if (window.stopLookup && window.stopLookup[stopId]) {
+                    stopName = window.stopLookup[stopId].name;
+                }
+                
+                tripStops.push({
+                    stopName: stopName,
+                    time: (c[idxArrivalTime] || "??:??").substring(0, 5),
+                    sequence: parseInt(c[idxStopSeq])
                 });
             }
         }
-        window.timetableDataStore[cacheKey] = stopSpecificData;
-        return filterAndProcessTimetable(stopSpecificData, companyId);
+
+        return tripStops.sort((a, b) => a.sequence - b.sequence);
     } catch (e) {
-        console.error("Fetch Error:", e);
+        console.error("便別時刻表取得エラー:", e);
         return [];
     }
 }
-
 /**
  * 特定の便 (tripId) の全停留所時刻表を取得する (新規追加分)
  */
