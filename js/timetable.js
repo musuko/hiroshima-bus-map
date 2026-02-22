@@ -1,71 +1,64 @@
 // js/timetable.js
 
+window.currentAborts = {}; // 会社ごとのキャンセル用コントローラー
+
 if (typeof window.timetableCache === 'undefined') {
     window.timetableCache = {};
 }
 
 async function getTimetableForStop(stopId, companyId = 'hiroden') {
-    // 【修正】無限ループ防止：10秒経ってもGTFS準備ができなければ強制開始
-    let retryCount = 0;
-    while(!window.isGtfsReady && retryCount < 100) {
-        await new Promise(r => setTimeout(r, 100));
-        retryCount++;
+    // 古い実行があればキャンセル
+    if (window.currentAborts[companyId]) {
+        window.currentAborts[companyId].abort();
     }
+    window.currentAborts[companyId] = new AbortController();
+    const signal = window.currentAborts[companyId].signal;
+
+    while(!window.isGtfsReady) await new Promise(r => setTimeout(r, 100));
 
     const cacheKey = `${companyId}_${stopId}`;
-    if (window.timetableCache[cacheKey]) {
-        return filterAndProcessTimetable(window.timetableCache[cacheKey], companyId);
-    }
+    if (window.timetableCache[cacheKey]) return filterAndProcessTimetable(window.timetableCache[cacheKey], companyId);
 
     try {
         const company = BUS_COMPANIES.find(c => c.id === companyId);
-        if (!company) return []; // 会社がなければ即終了
-
-        const response = await fetch(`${company.staticPath}stop_times.txt`);
-        if (!response.ok) throw new Error("File not found");
-
+        const response = await fetch(`${company.staticPath}stop_times.txt`, { signal });
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let partialData = '';
         let stopSpecificData = [];
-
-        let idxTripId, idxDepTime, idxStopId;
         let isFirstLine = true;
+        let idxTripId, idxDepTime, idxStopId;
 
         while (true) {
             const { value, done } = await reader.read();
             if (done) break;
             
+            // キャンセルされたかチェック
+            if (signal.aborted) throw new Error('aborted');
+
             partialData += decoder.decode(value, { stream: true });
             const lines = partialData.split(/\r?\n/);
             partialData = lines.pop(); 
 
             for (const line of lines) {
-                if (!line.trim()) continue;
                 const c = line.split(',').map(s => s.replace(/^"|"$/g, '').trim());
-                
                 if (isFirstLine) {
                     idxTripId = c.indexOf('trip_id');
                     idxDepTime = c.indexOf('departure_time');
                     idxStopId = c.indexOf('stop_id');
-                    isFirstLine = false;
-                    continue;
+                    isFirstLine = false; continue;
                 }
-                
                 if (c[idxStopId] === stopId.trim()) {
-                    stopSpecificData.push({ 
-                        tripId: c[idxTripId], 
-                        depTime: c[idxDepTime] 
-                    });
+                    stopSpecificData.push({ tripId: c[idxTripId], depTime: c[idxDepTime] });
                 }
             }
         }
-
         window.timetableCache[cacheKey] = stopSpecificData;
         return filterAndProcessTimetable(stopSpecificData, companyId);
     } catch (e) {
-        console.error("時刻表スキャンエラー:", e);
-        return []; // エラー時は空配列を返して後続を生かす
+        if (e.name === 'AbortError') console.log(`⏩ ${companyId} の旧リクエストをキャンセルしました`);
+        else console.error("スキャンエラー:", e);
+        return [];
     }
 }
 
@@ -95,6 +88,11 @@ function filterAndProcessTimetable(data, companyId) {
 }
 
 async function showUnifiedTimetable(stopId, companyIds, elementId) {
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    
+    // IDをコンソールに出して、データ不一致がないか確認しやすくする
+    console.log(`🔍 時刻表リクエスト受信: StopID[${stopId}] Companies[${companyIds}]`);
     // 【修正】要素取得のタイムアウト設定
     let container = null;
     for (let i = 0; i < 10; i++) {
