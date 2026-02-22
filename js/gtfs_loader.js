@@ -10,7 +10,6 @@ async function prepareAllGtfsData() {
     try {
         const activeCompanies = BUS_COMPANIES.filter(c => c.active);
 
-        // 共通のパース関数を先に定義
         const parse = (text, callback) => {
             const lines = text.trim().split(/\r?\n/);
             if (lines.length < 2) return;
@@ -42,30 +41,37 @@ async function prepareAllGtfsData() {
             const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
             const todayDayName = dayNames[now.getDay()];
 
-            // --- 2. 運行スケジュールの解析 ---
+            // --- 2. 運行スケジュールの解析 (calendar.txt) ---
             parse(cText, (c, head) => {
                 const sid = c[head.indexOf('service_id')];
                 const startDate = c[head.indexOf('start_date')];
                 const endDate = c[head.indexOf('end_date')];
                 const isDayOn = c[head.indexOf(todayDayName)] === '1';
 
-                if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
-                    window.activeServiceIds.add(`${company.id}_${sid}`);
-                }
-            });
-
-            // gtfs_loader.js の calendar 解析部分付近
-            parse(cText, (c, head) => {
-                const sid = c[head.indexOf('service_id')];
-                const startDate = c[head.indexOf('start_date')];
-                const endDate = c[head.indexOf('end_date')];
-                const isDayOn = c[head.indexOf(todayDayName)] === '1';
-            
                 if (todayStr >= startDate && todayStr <= endDate && isDayOn) {
                     const globalSid = `${company.id}_${sid}`;
                     window.activeServiceIds.add(globalSid);
-                    // デバッグログ：有効になったIDをコンソールに出す
                     console.log(`📅 有効なスケジュール: ${globalSid}`);
+                }
+            });
+
+            // --- 2.5 祝日・臨時便の解析 (calendar_dates.txt) ---
+            parse(cdText, (c, head) => {
+                const sid = c[head.indexOf('service_id')];
+                const date = c[head.indexOf('date')];
+                const exceptionType = c[head.indexOf('exception_type')];
+                const globalSid = `${company.id}_${sid}`;
+
+                if (date === todayStr) {
+                    if (exceptionType === '1') {
+                        // 1: 追加（臨時運行など）
+                        window.activeServiceIds.add(globalSid);
+                        console.log(`📅 臨時運行追加: ${globalSid}`);
+                    } else if (exceptionType === '2') {
+                        // 2: 除外（祝日運休など）
+                        window.activeServiceIds.delete(globalSid);
+                        console.log(`📅 祝日・臨時運休: ${globalSid}`);
+                    }
                 }
             });
 
@@ -86,9 +92,8 @@ async function prepareAllGtfsData() {
             
                 const globalTripId = `${company.id}_${tripId}`;
                 const globalRouteId = `${company.id}_${routeId}`;
-                // ここが重要：calendar.txtと合わせるために会社IDを付与
-                const globalServiceId = `${company.id}_${serviceId}`; 
-                
+                const globalServiceId = `${company.id}_${serviceId}`;
+            
                 window.tripLookup[globalTripId] = { 
                     routeId: globalRouteId, 
                     serviceId: globalServiceId 
