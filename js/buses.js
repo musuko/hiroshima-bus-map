@@ -70,6 +70,7 @@ async function updateBusPositions() {
                 if (!v || !v.position) return;
 
                 const rawTripId = v.trip ? v.trip.tripId : null;
+                console.log(`[ID調査] リアルタイムTripID: "${rawTripId}" (Company: ${company.id})`);
                 const rawRouteId = (v.trip && v.trip.routeId) ? v.trip.routeId : (v.routeId || null);
                 
                 // 辞書引き用にプレフィックス付きIDを作成
