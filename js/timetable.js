@@ -45,7 +45,7 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
                     isFirstChunk = false;
                     continue;
                 }
-                if (c[idxStopId] === stopId) {
+                if (c[idxStopId].trim().replace(/^"|"$/g, '') === stopId.trim().replace(/^"|"$/g, '')) {
                     stopSpecificData.push({ tripId: c[idxTripId], depTime: c[idxDepTime] });
                 }
             }
