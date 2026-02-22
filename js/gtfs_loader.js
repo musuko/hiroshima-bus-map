@@ -1,12 +1,15 @@
 // js/gtfs_loader.js
 
-// 最初に必ず初期化する
+// --- 最初に必ず初期化する ---
 window.stopLookup = {}; 
+window.tripLookup = {};
+window.routeLookup = {};
+window.routeJpLookup = {};
 window.gtfsCache = {};
 window.isGtfsReady = false;
 
 async function prepareAllGtfsData() {
-    console.log("🚀 起動プロセス: 最小限のデータで開始します");
+    console.log("🚀 起動プロセス: 最小限のデータ(stops.txtのみ)で開始します");
     
     for (const company of BUS_COMPANIES.filter(c => c.active)) {
         try {
@@ -22,12 +25,12 @@ async function prepareAllGtfsData() {
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
                 if (cols.length > sIdIdx && cols[sIdIdx]) {
-                    // IDの空白などを除去して登録
                     const stopId = cols[sIdIdx].trim();
+                    // ここでエラーは起きなくなります
                     window.stopLookup[stopId] = { name: cols[sNameIdx] || "名称不明" };
                 }
             }
-            console.log(`✅ ${company.name} の停留所データ準備完了`);
+            console.log(`✅ ${company.name} の停留所配置完了`);
         } catch (e) {
             console.error(`${company.name} の起動読込失敗:`, e);
         }
@@ -35,14 +38,5 @@ async function prepareAllGtfsData() {
     window.isGtfsReady = true; 
 }
 
-// 起動時に実行
+// 実行
 prepareAllGtfsData();
-
-/**
- * 詳細データの遅延ロード用（後ほど使用）
- */
-async function loadDetailedGtfsIfNeeded(companyId) {
-    if (window.gtfsCache[companyId]) return;
-    // ...（必要に応じてここに詳細パース処理を追加）
-    window.gtfsCache[companyId] = true;
-}
