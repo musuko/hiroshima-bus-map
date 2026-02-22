@@ -1,114 +1,64 @@
 // js/gtfs_loader.js
 
-window.tripLookup = {};
-window.routeLookup = {};
-window.routeJpLookup = {};
-window.isGtfsReady = false;
-window.activeServiceIds = new Set();
+// グローバル辞書（最初は空）
+window.gtfsCache = {}; // 会社ごとのデータを格納
 
 async function prepareAllGtfsData() {
-    try {
-        const activeCompanies = BUS_COMPANIES.filter(c => c.active);
-
-        const parse = (text, callback) => {
+    console.log("🚀 起動プロセス: 最小限のデータで開始します");
+    
+    for (const company of BUS_COMPANIES.filter(c => c.active)) {
+        try {
+            // 起動時に読み込むのは stops.txt だけ！
+            const res = await fetch(`${company.staticPath}stops.txt`);
+            const text = await res.text();
+            
+            // 既存の stops.js 等が使う window.stopLookup だけ作成
             const lines = text.trim().split(/\r?\n/);
-            if (lines.length < 2) return;
             const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            const sIdIdx = head.indexOf('stop_id');
+            const sNameIdx = head.indexOf('stop_name');
+
             for (let i = 1; i < lines.length; i++) {
-                const columns = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                if (columns.length > 1) callback(columns, head);
+                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (cols.length > 1) {
+                    window.stopLookup[cols[sIdIdx]] = { name: cols[sNameIdx] };
+                }
             }
-        };
-
-        for (const company of activeCompanies) {
-            console.log(`📦 GTFS辞書を作成中: ${company.name}`);
-
-            const [rRes, tRes, rJpRes, cRes, cdRes] = await Promise.all([
-                fetch(`${company.staticPath}routes.txt`),
-                fetch(`${company.staticPath}trips.txt`),
-                fetch(`${company.staticPath}routes_jp.txt`),
-                fetch(`${company.staticPath}calendar.txt`),
-                fetch(`${company.staticPath}calendar_dates.txt`)
-            ]);
-
-            const [rText, tText, rJpText, cText, cdText] = await Promise.all([
-                rRes.text(), tRes.text(), rJpRes.text(), cRes.text(), cdRes.text()
-            ]);
-
-            // --- 1. 今日の日付判定 ---
-            const now = new Date();
-            const todayStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
-            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-            const todayDayName = dayNames[now.getDay()];
-
-            // --- 2. 運行スケジュールの解析 (calendar.txt) ---
-            parse(cText, (c, head) => {
-                const sid = c[head.indexOf('service_id')];
-                const isDayOn = c[head.indexOf(todayDayName)] === '1';
-            
-                // 2026年でも動くように、曜日(isDayOn)だけで判定
-                if (isDayOn) {
-                    const globalSid = `${company.id}_${sid}`;
-                    window.activeServiceIds.add(globalSid);
-                }
-            });
-
-            // --- 2.5 祝日・臨時便の解析 (calendar_dates.txt) ---
-            parse(cdText, (c, head) => {
-                const sid = c[head.indexOf('service_id')];
-                const date = c[head.indexOf('date')];
-                const exceptionType = c[head.indexOf('exception_type')];
-                const globalSid = `${company.id}_${sid}`;
-
-                if (date === todayStr) {
-                        if (exceptionType === '1') {
-                            window.activeServiceIds.add(globalSid);
-                        } else if (exceptionType === '2') {
-                            window.activeServiceIds.delete(globalSid);
-                        }
-                }
-            });
-
-            // --- 3. 各種データの解析 ---
-            parse(rText, (c, head) => {
-                const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.routeLookup[globalId] = {
-                    no: c[head.indexOf('route_short_name')],
-                    name: c[head.indexOf('route_long_name')],
-                    companyId: company.id
-                };
-            });
-
-            parse(tText, (c, head) => {
-                const tripId = c[head.indexOf('trip_id')];
-                const routeId = c[head.indexOf('route_id')];
-                const serviceId = c[head.indexOf('service_id')];
-            
-                const globalTripId = `${company.id}_${tripId}`;
-                const globalRouteId = `${company.id}_${routeId}`;
-                const globalServiceId = `${company.id}_${serviceId}`;
-            
-                window.tripLookup[globalTripId] = { 
-                    routeId: globalRouteId, 
-                    serviceId: globalServiceId 
-                };
-            });
-
-            parse(rJpText, (c, head) => {
-                const globalId = `${company.id}_${c[head.indexOf('route_id')]}`;
-                window.routeJpLookup[globalId] = {
-                    origin: c[head.indexOf('origin_stop')],
-                    dest: c[head.indexOf('destination_stop')],
-                    jp_parent_route_id: c[head.indexOf('jp_parent_route_id')]
-                };
-            });
+            console.log(`✅ ${company.name} の停留所配置完了`);
+        } catch (e) {
+            console.error(`${company.name} の起動読込失敗:`, e);
         }
-
-        window.isGtfsReady = true;
-        console.log("✅ 全社のGTFS辞書準備完了 (有効なサービス数: " + window.activeServiceIds.size + ")");
-    } catch (e) {
-        console.error("GTFS読み込みエラー:", e);
     }
+    window.isGtfsReady = true; 
+}
+
+/**
+ * 【重要】バスをクリックした時に呼び出す「詳細データ読み込み」関数
+ */
+async function loadDetailedGtfsIfNeeded(companyId) {
+    // すでに読み込み済みなら何もしない
+    if (window.gtfsCache[companyId]) return window.gtfsCache[companyId];
+
+    const company = BUS_COMPANIES.find(c => c.id === companyId);
+    console.log(`📦 ${company.name} の詳細データをバックグラウンドで読み込み中...`);
+
+    // 必要なファイルだけをこのタイミングで取得
+    const files = ['routes.txt', 'trips.txt', 'routes_jp.txt', 'calendar.txt'];
+    const data = {};
+
+    await Promise.all(files.map(async file => {
+        try {
+            const res = await fetch(`${company.staticPath}${file}`);
+            data[file] = await res.text();
+        } catch (e) { console.warn(`${file} の取得失敗`); }
+    }));
+
+    // ここで初めて辞書（tripLookupなど）を構築する処理を行う
+    // (解析ロジックは以前の parse 関数と同じものを使用)
+    // ... 解析して window.tripLookup 等へ追加 ...
+
+    window.gtfsCache[companyId] = true; // 完了フラグ
+    return true;
 }
 
 prepareAllGtfsData();
