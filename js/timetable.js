@@ -5,10 +5,13 @@ if (!window.timetableDataStore) {
 }
 window.activeDisplayStopId = "";
 
+/**
+ * バス停用の時刻表データを取得する (既存の機能)
+ */
 async function getTimetableForStop(stopId, companyId = 'hiroden') {
     const cacheKey = `${companyId}_${stopId}`;
     if (window.timetableDataStore[cacheKey]) {
-        // キャッシュがあっても少しだけ待つ（DOM描画との競合を避けるため安全策）
+        // キャッシュがあってもDOM描画を待つために微小な待機
         await new Promise(r => setTimeout(r, 10)); 
         return filterAndProcessTimetable(window.timetableDataStore[cacheKey], companyId);
     }
@@ -18,40 +21,78 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
         if (!company) return [];
 
         const response = await fetch(`${company.staticPath}stop_times.txt`);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let partialData = '';
-        let stopSpecificData = [];
-        let isFirstLine = true;
-        let idxTripId, idxDepTime, idxStopId;
+        const text = await response.text();
+        const lines = text.split(/\r?\n/);
+        
+        const header = lines[0].split(',').map(s => s.replace(/^"|"$/g, '').trim());
+        const idxTripId = header.indexOf('trip_id');
+        const idxDepTime = header.indexOf('departure_time');
+        const idxStopId = header.indexOf('stop_id');
 
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            partialData += decoder.decode(value, { stream: true });
-            const lines = partialData.split(/\r?\n/);
-            partialData = lines.pop(); 
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                const c = line.split(',').map(s => s.replace(/^"|"$/g, '').trim());
-                if (isFirstLine) {
-                    idxTripId = c.indexOf('trip_id');
-                    idxDepTime = c.indexOf('departure_time');
-                    idxStopId = c.indexOf('stop_id');
-                    isFirstLine = false; continue;
-                }
-                if (c[idxStopId] === stopId.trim()) {
-                    stopSpecificData.push({ tripId: c[idxTripId], depTime: c[idxDepTime] });
-                }
+        let stopSpecificData = [];
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const c = lines[i].split(',').map(s => s.replace(/^"|"$/g, '').trim());
+            if (c[idxStopId] === stopId.trim()) {
+                stopSpecificData.push({ 
+                    tripId: c[idxTripId], 
+                    depTime: c[idxDepTime] 
+                });
             }
         }
         window.timetableDataStore[cacheKey] = stopSpecificData;
         return filterAndProcessTimetable(stopSpecificData, companyId);
     } catch (e) {
+        console.error("Fetch Error:", e);
         return [];
     }
 }
 
+/**
+ * 特定の便 (tripId) の全停留所時刻表を取得する (新規追加分)
+ */
+async function getFullTimetableForTrip(tripId, companyId) {
+    try {
+        const company = BUS_COMPANIES.find(c => c.id === companyId);
+        if (!company) return [];
+
+        const response = await fetch(`${company.staticPath}stop_times.txt`);
+        const text = await response.text();
+        const lines = text.split(/\r?\n/);
+        
+        const header = lines[0].split(',').map(s => s.replace(/^"|"$/g, '').trim());
+        const idxTripId = header.indexOf('trip_id');
+        const idxArrivalTime = header.indexOf('arrival_time');
+        const idxStopId = header.indexOf('stop_id');
+        const idxStopSeq = header.indexOf('stop_sequence');
+
+        let tripStops = [];
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const c = lines[i].split(',').map(s => s.replace(/^"|"$/g, '').trim());
+            
+            if (c[idxTripId] === tripId) {
+                const stopId = c[idxStopId];
+                // window.stopLookup を利用して名称変換
+                const stopInfo = window.stopLookup[stopId] || { name: `ID:${stopId}` };
+                
+                tripStops.push({
+                    stopName: stopInfo.name,
+                    time: c[idxArrivalTime].substring(0, 5),
+                    sequence: parseInt(c[idxStopSeq])
+                });
+            }
+        }
+        return tripStops.sort((a, b) => a.sequence - b.sequence);
+    } catch (e) {
+        console.error("便別時刻表取得エラー:", e);
+        return [];
+    }
+}
+
+/**
+ * データのフィルタリング・整形
+ */
 function filterAndProcessTimetable(data, companyId) {
     if (!window.activeServiceIds || !window.tripLookup) return [];
     return data.map(item => {
@@ -59,36 +100,35 @@ function filterAndProcessTimetable(data, companyId) {
         const tripData = window.tripLookup[globalTripId];
         if (!tripData || !window.activeServiceIds.has(tripData.serviceId)) return null;
         const routeInfo = window.routeLookup[tripData.routeId] || { no: "??", name: "不明" };
-        return { time: item.depTime.substring(0, 5), routeNo: routeInfo.no, headsign: routeInfo.name, companyId: companyId };
+        return { 
+            time: item.depTime.substring(0, 5), 
+            routeNo: routeInfo.no, 
+            headsign: routeInfo.name, 
+            companyId: companyId,
+            tripId: item.tripId // 後でバス詳細に飛ばす場合に便利
+        };
     }).filter(v => v !== null);
 }
 
+/**
+ * バス停クリック時の統合表示
+ */
 async function showUnifiedTimetable(stopId, companyIds, elementId) {
     window.activeDisplayStopId = stopId;
     
-    // 1. DOM要素が「確実に」現れるまで待つ
     let container = null;
-    for (let i = 0; i < 30; i++) { // 最大3秒まで粘る
+    for (let i = 0; i < 30; i++) {
         container = document.getElementById(elementId);
-        // かつ、まだ「読み込み中...」が表示されているか確認
-        if (container && container.innerHTML.includes('読み込み中')) {
-            break;
-        }
+        if (container && container.innerHTML.includes('読み込み中')) break;
         await new Promise(r => setTimeout(r, 100));
     }
     
-    if (!container) {
-        console.error("❌ 表示先が見つかりませんでした");
-        return;
-    }
+    if (!container) return;
 
     try {
         const results = await Promise.all(companyIds.map(cid => getTimetableForStop(stopId, cid)));
-
-        // 2. 自分がまだ最新のリクエストか再確認
         if (window.activeDisplayStopId !== stopId) return;
 
-        // 3. 描画直前に再度要素をチェック（ポップアップが閉じられていないか）
         const finalContainer = document.getElementById(elementId);
         if (!finalContainer) return;
 
@@ -117,3 +157,5 @@ async function showUnifiedTimetable(stopId, companyIds, elementId) {
 }
 
 window.showUnifiedTimetable = showUnifiedTimetable;
+window.getTimetableForStop = getTimetableForStop; // 公開
+window.getFullTimetableForTrip = getFullTimetableForTrip; // 公開
