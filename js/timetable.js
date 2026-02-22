@@ -47,9 +47,9 @@ async function showUnifiedTimetable(stopId) {
     console.log("1. 統合表示開始 stopId:", stopId);
     
     // HTML上の表示先要素を取得
-    const container = document.getElementById('unified-timetable-container');
+    const container = document.querySelector('.leaflet-popup-content');
     if (!container) {
-        console.error("エラー: ID 'unified-timetable-container' が見つかりません。index.htmlを確認してください。");
+        console.error("ポップアップが見つかりません。");
         return;
     }
 
