@@ -3,7 +3,8 @@
 const busMarkers = {};
 
 async function updateBusPositions() {
-    if (!window.map || !window.routeJpLookup) return;
+    // window.routeJpLookup がなくても実行を許可する
+    if (!window.map) return; 
 
     const activeCompanies = BUS_COMPANIES.filter(c => c.active);
     const targetMap = window.map;
