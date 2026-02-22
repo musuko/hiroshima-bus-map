@@ -5,20 +5,25 @@ if (typeof window.timetableCache === 'undefined') {
 }
 
 async function getTimetableForStop(stopId, companyId = 'hiroden') {
-    while(!window.isGtfsReady) await new Promise(r => setTimeout(r, 100));
+    // 【修正】無限ループ防止：10秒経ってもGTFS準備ができなければ強制開始
+    let retryCount = 0;
+    while(!window.isGtfsReady && retryCount < 100) {
+        await new Promise(r => setTimeout(r, 100));
+        retryCount++;
+    }
 
     const cacheKey = `${companyId}_${stopId}`;
     if (window.timetableCache[cacheKey]) {
-        console.log(`♻️ キャッシュを使用: ${cacheKey}`);
         return filterAndProcessTimetable(window.timetableCache[cacheKey], companyId);
     }
 
     try {
         const company = BUS_COMPANIES.find(c => c.id === companyId);
-        if (!company) throw new Error("会社設定が見つかりません");
+        if (!company) return []; // 会社がなければ即終了
 
-        console.log(`🚀 ${company.name} スキャン開始: 検索ID [${stopId}]`);
         const response = await fetch(`${company.staticPath}stop_times.txt`);
+        if (!response.ok) throw new Error("File not found");
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let partialData = '';
@@ -44,11 +49,9 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
                     idxDepTime = c.indexOf('departure_time');
                     idxStopId = c.indexOf('stop_id');
                     isFirstLine = false;
-                    console.log(`📌 列配置: trip=${idxTripId}, time=${idxDepTime}, stop=${idxStopId}`);
                     continue;
                 }
                 
-                // ここでID比較
                 if (c[idxStopId] === stopId.trim()) {
                     stopSpecificData.push({ 
                         tripId: c[idxTripId], 
@@ -58,12 +61,11 @@ async function getTimetableForStop(stopId, companyId = 'hiroden') {
             }
         }
 
-        console.log(`📊 ${company.name} 抽出結果: ${stopSpecificData.length} 件`);
         window.timetableCache[cacheKey] = stopSpecificData;
         return filterAndProcessTimetable(stopSpecificData, companyId);
     } catch (e) {
-        console.error("❌ 時刻表スキャン致命的エラー:", e);
-        return [];
+        console.error("時刻表スキャンエラー:", e);
+        return []; // エラー時は空配列を返して後続を生かす
     }
 }
 
@@ -92,43 +94,46 @@ function filterAndProcessTimetable(data, companyId) {
     return processed.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-// --- showUnifiedTimetable の修正（0件の時も必ず書き換える） ---
 async function showUnifiedTimetable(stopId, companyIds, elementId) {
-    let container = document.getElementById(elementId);
+    // 【修正】要素取得のタイムアウト設定
+    let container = null;
+    for (let i = 0; i < 10; i++) {
+        container = document.getElementById(elementId);
+        if (container) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    
     if (!container) return;
 
-    // 現在の「読み込み中...」という文字を含んだ中身を退避
-    const originalHeader = container.querySelector('strong') ? container.querySelector('strong').outerHTML : "<strong>時刻表</strong>";
+    // ヘッダー（駅名など）を取得して保存
+    const originalHeader = container.innerHTML.split('<hr>')[0] || `<strong>時刻表 (ID: ${stopId})</strong>`;
 
     try {
-        const promises = companyIds.map(cid => getTimetableForStop(stopId, cid));
-        const results = await Promise.all(promises);
-        let combined = results.flat();
-        
-        combined.sort((a, b) => a.time.localeCompare(b.time));
+        // 並列で取得を開始
+        const results = await Promise.all(companyIds.map(cid => getTimetableForStop(stopId, cid)));
+        const combined = results.flat().sort((a, b) => a.time.localeCompare(b.time));
 
         if (combined.length === 0) {
-            // ★ここが重要：0件の時は「読み込み中」を消してメッセージを出す
-            container.innerHTML = `${originalHeader}<br><hr><div style="padding:10px; color:gray;">本日の運行予定はありません<br><small>(StopID: ${stopId})</small></div>`;
-            return;
+            container.innerHTML = `${originalHeader}<hr><div style="padding:10px; color:#666;">本日の運行予定はありません</div>`;
+        } else {
+            let html = `${originalHeader}<hr><div style="max-height:250px; overflow-y:auto;">`;
+            html += `<table style="width:100%; font-size:12px; border-collapse:collapse;">`;
+            combined.forEach(item => {
+                const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
+                html += `<tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:6px 0; font-weight:bold; width:45px;">${item.time}</td>
+                    <td style="padding:6px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold;">${item.routeNo}</span></td>
+                    <td style="padding:6px 0;">${item.headsign}</td>
+                </tr>`;
+            });
+            html += `</table></div>`;
+            container.innerHTML = html;
         }
-
-        let html = `${originalHeader}<br><hr><div style="max-height:250px; overflow-y:auto;"><table style="width:100%; font-size:12px; border-collapse:collapse;">`;
-        combined.forEach(item => {
-            const color = (item.companyId === 'hirobus') ? '#e60012' : '#82c91e';
-            html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:6px 0; font-weight:bold; width:45px;">${item.time}</td>
-                <td style="padding:6px 2px; width:40px;"><span style="background:${color}; color:#fff; padding:2px 4px; border-radius:3px; font-weight:bold;">${item.routeNo}</span></td>
-                <td style="padding:6px 0;">${item.headsign}</td>
-            </tr>`;
-        });
-        html += `</table></div>`;
-        container.innerHTML = html;
-
     } catch (e) {
-        console.error("表示エラー:", e);
-        container.innerHTML = "時刻表エラーが発生しました。";
+        console.error("表示更新エラー:", e);
+        container.innerHTML = `${originalHeader}<hr>読み込み中にエラーが発生しました。`;
     }
 }
+
 window.showUnifiedTimetable = showUnifiedTimetable;
 window.getTimetableForStop = getTimetableForStop;
