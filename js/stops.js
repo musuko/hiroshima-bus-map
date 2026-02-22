@@ -48,38 +48,52 @@ async function loadAllStops() {
     renderMergedStops(stopMap);
 }
 
+// js/stops.js の renderMergedStops 関数内を修正
+
 function renderMergedStops(stopMap) {
     const targetMap = window.map;
+    
     Object.values(stopMap).forEach(stop => {
-        // 複数社共通のバス停はオレンジ、単独は青
-        const markerColor = stop.companies.length > 1 ? "#ff8c00" : "#3388ff";
+        let markerColor = "#3388ff"; // デフォルト（青）
+
+        // 会社リストを取得
+        const companies = stop.companies;
+
+        if (companies.length > 1) {
+            // --- 複数社がミックスしているバス停 ---
+            markerColor = "#9400D3"; // 目立つ色：ダークバイオレット（紫）
+        } else if (companies.includes('hiroden')) {
+            // --- 広電バス単独 ---
+            markerColor = "#82c91e"; // 黄緑（buses.jsと統一）
+        } else if (companies.includes('hirobus')) {
+            // --- 広島バス単独 ---
+            markerColor = "#e60012"; // 赤（buses.jsと統一）
+        }
 
         const marker = L.circleMarker([stop.lat, stop.lon], {
-            radius: 7,
-            fillColor: "#ffffff",
-            color: markerColor,
-            weight: 2,
+            radius: 6,           // 少し小さくしてスッキリさせます
+            fillColor: "#ffffff", // 中は白
+            color: markerColor,   // 枠線の色
+            weight: 3,            // 枠線を少し太くして色を強調
             opacity: 1,
-            fillOpacity: 0.8
+            fillOpacity: 0.9
         }).addTo(targetMap);
 
+        // クリックイベントなどはそのまま維持
         marker.on('click', async () => {
             const popupId = `popup-${stop.stopId}`;
             const popupContent = `<div id="${popupId}" style="min-width:200px;">
-                <strong>${stop.name}</strong> (ID: ${stop.stopId})<br><hr>
+                <strong style="color:${markerColor}">${stop.name}</strong> (ID: ${stop.stopId})<br><hr>
                 <div class="loading">時刻表を読み込み中...</div>
             </div>`;
             marker.bindPopup(popupContent).openPopup();
             
-            // エラー解消：timetable.js 内に作成する統合表示関数を呼び出す
             if (window.showUnifiedTimetable) {
                 window.showUnifiedTimetable(stop.stopId, stop.companies, popupId);
-            } else {
-                console.error("showUnifiedTimetable が定義されていません。timetable.jsを確認してください。");
             }
         });
     });
-    console.log(`✅ ${Object.keys(stopMap).length} 地点のバス停を stop_id で統合表示しました`);
+    console.log(`✅ 色分け完了（広電:黄緑 / 広バス:赤 / 共通:紫）`);
 }
 
 loadAllStops();
