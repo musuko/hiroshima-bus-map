@@ -45,3 +45,33 @@ window.addEventListener('resize', () => {
         window.map.panTo(center, { animate: false });
     }
 });
+
+// main.js の末尾などに追加
+
+function adjustHeaderRotation() {
+    const header = document.querySelector('.header');
+    if (!header) return;
+
+    // 横画面の時だけ判定
+    if (window.innerWidth > window.innerHeight) {
+        // angle が 90 なら時計回り、-90(または270) なら反時計回り
+        const angle = window.screen.orientation ? window.screen.orientation.angle : window.orientation;
+
+        if (angle === 90) {
+            // 時計回り：上から下へ
+            header.style.transform = "rotate(90deg)";
+        } else if (angle === -90 || angle === 270) {
+            // 反時計回り：上から下へ（逆回転させて向きを維持）
+            header.style.transform = "rotate(-90deg)";
+        }
+    } else {
+        // 縦画面の時は回転をリセット
+        header.style.transform = "none";
+    }
+}
+
+// 画面サイズ変更時と回転時に実行
+window.addEventListener('resize', adjustHeaderRotation);
+window.addEventListener('orientationchange', adjustHeaderRotation);
+// 起動時にも一度実行
+adjustHeaderRotation();
