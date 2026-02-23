@@ -32,4 +32,13 @@ window.addEventListener('load', async () => {
     } else {
         console.error("Mapが初期化されていません");
     }
+    // 回転時の中央維持ロジック
+window.addEventListener('resize', () => {
+    if (window.map) {
+        const center = window.map.getCenter();
+        // 地図のサイズ変更を認識させる
+        window.map.invalidateSize();
+        // 元の中央座標にスムーズに戻す
+        window.map.panTo(center, { animate: false });
+    }
 });
