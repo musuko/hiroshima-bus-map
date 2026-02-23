@@ -26,33 +26,39 @@ html, body {
     width: 100%;
 }
 
-/* ★ スマホを横にした時（Landscape）のレイアウト ★ */
+/* ★ スマホを横にした時（Landscape）のレイアウト調整 ★ */
 @media screen and (orientation: landscape) and (max-height: 500px) {
     body {
-        flex-direction: row; /* 横並びに変更 */
+        flex-direction: row; 
     }
 
     .header {
-        width: 120px !important; /* 横幅を固定してサイドバー化 */
+        /* 幅をさらにスリムに（120px → 40px） */
+        width: 40px !important; 
         height: 100% !important;
-        line-height: 1.4 !important; /* 文字が縦に詰まらないよう調整 */
+        line-height: 1.2 !important;
         display: flex;
         align-items: center;
         justify-content: center;
         box-shadow: 1px 0 5px rgba(0,0,0,0.2);
-        font-size: 0.8rem;
-        padding: 0 5px;
-        order: 0; /* 左側に置く（右が良ければ 1 に変更） */
+        padding: 0;
+        overflow: hidden;
+    }
+
+    /* ヘッダー内のテキスト（またはタイトル）を回転 */
+    .header div, .header span, .header h1 {
+        /* 文字を縦方向に並べる設定 */
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg); /* 読みやすい向きに微調整（必要に応じて） */
+        white-space: nowrap;
+        font-size: 0.9rem;
+        letter-spacing: 2px;
     }
 
     #map {
         height: 100% !important;
-        width: calc(100vw - 120px) !important;
-    }
-
-    /* ポップアップが横長画面で邪魔にならないよう調整 */
-    .leaflet-popup-content-wrapper {
-        max-height: 150px;
-        overflow-y: auto;
+        /* 地図の幅を再計算（100vw - 40px） */
+        width: calc(100vw - 40px) !important;
     }
 }
