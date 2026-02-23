@@ -118,28 +118,26 @@ function syncHeaderWithOrientation() {
 
         body.style.flexDirection = "row"; 
 
+        // --- 物理的な位置関係に基づいた修正 ---
         if (angle === 90) {
-            // 時計回り（右端）
-            header.style.order = "1";
+            // 【時計回り】上部にあったヘッダーは物理的に「右端」へ
+            header.style.order = "1"; // Map(0) -> Header(1) の順で右配置
             header.style.width = "40px";
             header.style.height = "100vh";
-            headerText.style.transform = "rotate(90deg)";
-        } else {
-            // 反時計回り（左端）
-            header.style.order = "0";
+            headerText.style.transform = "rotate(90deg)"; // 文字も右倒し
+            header.style.borderLeft = "1px solid #ddd";
+            header.style.borderRight = "none";
+            
+        } else if (angle === -90 || angle === 270) {
+            // 【反時計回り】上部にあったヘッダーは物理的に「左端」へ
+            header.style.order = "0"; // Header(0) -> Map(1) の順で左配置
             header.style.width = "40px";
             header.style.height = "100vh";
-            headerText.style.transform = "rotate(-90deg)";
+            headerText.style.transform = "rotate(-90deg)"; // 文字も左倒し
+            header.style.borderRight = "1px solid #ddd";
+            header.style.borderLeft = "none";
         }
         header.style.lineHeight = "normal";
-    } else {
-        // PC/縦画面
-        body.style.flexDirection = "column";
-        header.style.order = "";
-        header.style.width = "100%";
-        header.style.height = "50px";
-        header.style.lineHeight = "50px";
-        headerText.style.transform = "none";
     }
 
     if (window.map) {
