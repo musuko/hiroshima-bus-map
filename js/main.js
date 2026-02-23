@@ -1,77 +1,44 @@
-// js/main.js
-
-window.addEventListener('load', async () => {
-    // 1. まず現在地の追跡を開始
-    if (typeof window.startGeolocation === 'function') {
-        window.startGeolocation();
-        console.log("現在地取得を開始しました");
-    }
-
-    // 2. GTFS辞書の準備（もしあれば）
-    if (typeof window.prepareGtfsData === 'function') {
-        await window.prepareGtfsData();
-    }
-
-    // 3. 地図と機能の初期化
-    if (window.map) {
-        // バス停の読み込み (stops.js内の関数名に合わせてください)
-        if (typeof loadAllStops === 'function') {
-            loadAllStops();
-        }
-
-        // バス位置の更新
-        if (typeof window.updateBusPositions === 'function') {
-            // 初回実行
-            window.updateBusPositions();
-            
-            // 15秒ごとに定期更新
-            setInterval(() => {
-                console.log("15秒経過：バス位置を更新します");
-                window.updateBusPositions();
-            }, 15000);
-        }
-    } else {
-        console.error("Mapが初期化されていません");
-    }
-}); // <--- ここで正しく閉じます
-
-// 回転時の中央維持ロジック（loadの外に置くのが一般的です）
-window.addEventListener('resize', () => {
-    if (window.map) {
-        const center = window.map.getCenter();
-        // 地図のサイズ変更を認識させる
-        window.map.invalidateSize();
-        // 元の中央座標に即座に戻す
-        window.map.panTo(center, { animate: false });
-    }
-});
-
-// main.js の末尾などに追加
+// js/main.js の末尾など
 
 function adjustHeaderRotation() {
-    const header = document.querySelector('.header');
-    if (!header) return;
+    const textElement = document.querySelector('.header-text');
+    if (!textElement) return;
 
-    // 横画面の時だけ判定
+    // 横画面判定
     if (window.innerWidth > window.innerHeight) {
-        // angle が 90 なら時計回り、-90(または270) なら反時計回り
-        const angle = window.screen.orientation ? window.screen.orientation.angle : window.orientation;
+        // 回転角取得（標準的なAPIと古いiOSの両方に対応）
+        let angle = 0;
+        if (window.screen && window.screen.orientation) {
+            angle = window.screen.orientation.angle;
+        } else if (typeof window.orientation !== 'undefined') {
+            angle = window.orientation;
+        }
 
+        // angle 90: 時計回り(右)に倒した / angle -90, 270: 反時計回り(左)に倒した
         if (angle === 90) {
-            // 時計回り：上から下へ
-            header.style.transform = "rotate(90deg)";
+            textElement.style.transform = "rotate(90deg)";
         } else if (angle === -90 || angle === 270) {
-            // 反時計回り：上から下へ（逆回転させて向きを維持）
-            header.style.transform = "rotate(-90deg)";
+            textElement.style.transform = "rotate(-90deg)";
+        } else {
+            // angle 0 または 180 (逆さま) の時
+            textElement.style.transform = "none";
         }
     } else {
-        // 縦画面の時は回転をリセット
-        header.style.transform = "none";
+        // 縦画面
+        textElement.style.transform = "none";
+    }
+
+    // 地図のサイズ更新も併せて実行
+    if (window.map) {
+        const center = window.map.getCenter();
+        window.map.invalidateSize();
+        window.map.panTo(center, { animate: false });
     }
 }
 
-// 画面サイズ変更時と回転時に実行
+// イベント登録
 window.addEventListener('resize', adjustHeaderRotation);
 window.addEventListener('orientationchange', adjustHeaderRotation);
-// 起動時にも一度実行
-adjustHeaderRotation();
+
+// 起動時に実行
+document.addEventListener('DOMContentLoaded', adjustHeaderRotation);
