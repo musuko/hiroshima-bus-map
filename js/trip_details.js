@@ -1,7 +1,7 @@
 // js/trip_details.js
 
 async function getFullTimetableForTrip(tripId, companyId) {
-    console.log(`🔍 [車両クリック] tripId: ${tripId} の時刻表を直接探索します`);
+    console.log(`🔍 [車両詳細取得] tripId: ${tripId} を探索中...`);
     if (!tripId) return [];
     
     const company = BUS_COMPANIES.find(c => c.id === companyId);
@@ -16,7 +16,6 @@ async function getFullTimetableForTrip(tripId, companyId) {
     }
 
     try {
-        // カレンダー判定を一切行わず、直接 stop_times.txt を読み込む
         const res = await fetch(`${company.staticPath}stop_times.txt`);
         const text = await res.text();
         const lines = text.trim().split(/\r?\n/);
@@ -29,9 +28,7 @@ async function getFullTimetableForTrip(tripId, companyId) {
 
         const tripStops = [];
         
-        // 全行をスキャンして trip_id が一致するものをすべて拾う
         for (let i = 1; i < lines.length; i++) {
-            // 高速化のため、行全体にIDが含まれているかまずチェック
             if (lines[i].includes(tripId)) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
                 if (cols[tIdx] === tripId) {
@@ -47,11 +44,12 @@ async function getFullTimetableForTrip(tripId, companyId) {
         }
 
         if (tripStops.length > 0) {
-            console.log(`✅ 表示確定: ${tripStops.length} 件の停留所を表示します`);
+            console.log(`✅ データ発見: ${tripStops.length} 件`);
             return tripStops.sort((a, b) => a.sequence - b.sequence);
         } else {
-            console.warn(`❌ stop_times.txt 内に tripId: ${tripId} が見つかりませんでした`);
-            return [];
+            // ここで情報を詳しく出す
+            console.warn(`ℹ️ ${company.name}: trip_id "${tripId}" の時刻データが stop_times.txt に登録されていません。`);
+            return []; // 空の配列を返すことで buses.js 側に「なし」を伝える
         }
 
     } catch (e) {
