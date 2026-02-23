@@ -1,50 +1,58 @@
+/* js/style.css */
+
 html, body {
     margin: 0;
     padding: 0;
     height: 100%;
+    width: 100%;
     overscroll-behavior: none;
+    display: flex;
+    flex-direction: column; /* 通常（縦画面）は縦に並べる */
 }
 
-#map {
-    height: calc(100dvh - 50px);
-    width: 100vw;
-    /* position: relative; または absolute; があることを確認 */
-}
-
-/* クラス名 .header に統一 */
 .header {
     height: 50px;
+    width: 100%;
     background: white;
     text-align: center;
     line-height: 50px;
     font-weight: bold;
     box-shadow: 0 1px 5px rgba(0,0,0,0.2);
-    position: relative; /* 重なり順を安定させる */
-    z-index: 1000;
+    z-index: 1001; /* 地図より上に */
 }
 
-.leaflet-bottom.leaflet-right {
-    bottom: calc(20px + env(safe-area-inset-bottom));
-    right: 10px;
+#map {
+    flex-grow: 1; /* 残りの画面いっぱいに広がる */
+    width: 100%;
 }
 
-/* モバイル横向き（Landscape）時の調整 */
+/* ★ スマホを横にした時（Landscape）のレイアウト ★ */
 @media screen and (orientation: landscape) and (max-height: 500px) {
+    body {
+        flex-direction: row; /* 横並びに変更 */
+    }
+
     .header {
-        height: 35px !important; /* 横画面はさらにスリムに */
-        line-height: 35px !important;
-        padding: 0 10px !important;
-        font-size: 0.9rem !important;
+        width: 120px !important; /* 横幅を固定してサイドバー化 */
+        height: 100% !important;
+        line-height: 1.4 !important; /* 文字が縦に詰まらないよう調整 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 1px 0 5px rgba(0,0,0,0.2);
+        font-size: 0.8rem;
+        padding: 0 5px;
+        order: 0; /* 左側に置く（右が良ければ 1 に変更） */
     }
 
     #map {
-        /* ヘッダーの高さ(35px)を引いた高さに調整 */
-        height: calc(100vh - 35px) !important;
+        height: 100% !important;
+        width: calc(100vw - 120px) !important;
     }
 
-    /* ポップアップが画面を塞がないように調整 */
+    /* ポップアップが横長画面で邪魔にならないよう調整 */
     .leaflet-popup-content-wrapper {
-        max-height: 180px;
+        max-height: 150px;
         overflow-y: auto;
     }
 }
