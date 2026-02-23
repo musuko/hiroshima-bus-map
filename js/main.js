@@ -5,7 +5,8 @@ function syncHeaderWithOrientation() {
     const body = document.body;
     const header = document.querySelector('.header');
     const headerText = document.querySelector('.header-text');
-    if (!header || !headerText) return;
+    const mapContainer = document.getElementById('map');
+    if (!header || !headerText || !mapContainer) return;
 
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -15,28 +16,43 @@ function syncHeaderWithOrientation() {
         body.style.flexDirection = "column";
         header.style.width = "100%";
         header.style.height = "50px";
+        header.style.lineHeight = "50px";
         headerText.style.transform = "none";
+        
+        // 地図の幅をリセット
+        mapContainer.style.width = "100%";
     } else {
         // --- スマホ横持ち ---
         let angle = window.orientation || (window.screen.orientation && window.screen.orientation.angle) || 0;
 
         header.style.width = "40px";
         header.style.height = "100vh";
+        header.style.lineHeight = "normal";
 
-        // 【物理修正】
-        // angle 90 (時計回り)  -> 上部は右へ行く
-        // angle -90 (反時計回り) -> 上部は左へ行く
+        // 地図の幅を「ヘッダー分を引いた残り」に明示的に固定
+        mapContainer.style.width = "calc(100vw - 40px)";
+
+        // 【最終修正：物理配置】
+        // スマホを時計回りに倒すと、ブラウザは「90度」を返しますが、
+        // あなたの端末ではこれが「左」を指している可能性があるため、逆転させます。
         if (angle === 90) {
-            body.style.flexDirection = "row-reverse"; // 右にヘッダー
-            headerText.style.transform = "rotate(90deg)";
-        } else if (angle === -90 || angle === 270) {
-            body.style.flexDirection = "row"; // 左にヘッダー
+            body.style.flexDirection = "row"; // ヘッダーを左配置
             headerText.style.transform = "rotate(-90deg)";
+            header.style.borderRight = "1px solid #ddd";
+            header.style.borderLeft = "none";
+        } else {
+            body.style.flexDirection = "row-reverse"; // ヘッダーを右配置
+            headerText.style.transform = "rotate(90deg)";
+            header.style.borderLeft = "1px solid #ddd";
+            header.style.borderRight = "none";
         }
     }
 
+    // 地図の描画崩れ（半分グレー）を防ぐため、サイズを再計算
     if (window.map) {
-        setTimeout(() => { window.map.invalidateSize(); }, 200);
+        setTimeout(() => {
+            window.map.invalidateSize();
+        }, 300); // 余裕を持って300ms待機
     }
 }
 
