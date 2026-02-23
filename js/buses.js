@@ -94,6 +94,7 @@ async function updateBusPositions() {
                         const stopsData = await window.getFullTimetableForTrip(rawTripId, company.id);
                         
                         if (stopsData && stopsData.length > 0) {
+                            // 【成功時】データを表示
                             originLabel.innerHTML = `始発: ${stopsData[0].stopName}`;
                             destTitle.innerHTML = `${stopsData[stopsData.length - 1].stopName} 行`;
 
@@ -106,7 +107,14 @@ async function updateBusPositions() {
                             });
                             container.innerHTML = tableHtml + `</table>`;
                         } else {
-                            container.innerHTML = "詳細データなし";
+                            // 【データなし時】ラベルを「データなし」に更新し、メッセージを表示
+                            originLabel.innerHTML = `始発: データなし`;
+                            // destTitle はそのまま（「運行中」など）にするか、必要なら変更してください
+                            container.innerHTML = `
+                                <div style="padding:10px 5px; color:#888; line-height:1.4;">
+                                    ※時刻表データがありません。<br>
+                                    <small>(臨時便または最新のダイヤに未対応の可能性があります)</small>
+                                </div>`;
                         }
                     });
 
