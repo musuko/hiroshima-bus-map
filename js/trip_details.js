@@ -1,13 +1,12 @@
 // js/trip_details.js
 
 async function getFullTimetableForTrip(tripId, companyId) {
-    console.log(`🔍 [車両詳細取得] tripId: ${tripId} を探索中...`);
+    // console.log はデバッグ用に残しても良いですが、warn は消します
     if (!tripId) return [];
     
     const company = BUS_COMPANIES.find(c => c.id === companyId);
     if (!company) return [];
 
-    // ポップアップがDOMに生成されるのを待機（タイミング競合対策）
     let container = null;
     for (let i = 0; i < 10; i++) {
         container = document.querySelector('.leaflet-popup-content');
@@ -27,7 +26,6 @@ async function getFullTimetableForTrip(tripId, companyId) {
         const sqIdx = head.indexOf('stop_sequence');
 
         const tripStops = [];
-        
         for (let i = 1; i < lines.length; i++) {
             if (lines[i].includes(tripId)) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
@@ -43,17 +41,11 @@ async function getFullTimetableForTrip(tripId, companyId) {
             }
         }
 
-        if (tripStops.length > 0) {
-            console.log(`✅ データ発見: ${tripStops.length} 件`);
-            return tripStops.sort((a, b) => a.sequence - b.sequence);
-        } else {
-            // ここで情報を詳しく出す
-            console.warn(`ℹ️ ${company.name}: trip_id "${tripId}" の時刻データが stop_times.txt に登録されていません。`);
-            return []; // 空の配列を返すことで buses.js 側に「なし」を伝える
-        }
+        // 並び替えて返す（空なら [] が返る）
+        return tripStops.sort((a, b) => a.sequence - b.sequence);
 
     } catch (e) {
-        console.error("❌ 時刻表取得エラー:", e);
+        // fetch自体に失敗した場合のみエラーログを出す
         return [];
     }
 }
