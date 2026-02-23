@@ -1,4 +1,4 @@
-/* js/style.css */
+/* style.css */
 
 html, body {
     margin: 0;
@@ -7,7 +7,7 @@ html, body {
     width: 100%;
     overscroll-behavior: none;
     display: flex;
-    flex-direction: column; /* 通常（縦画面）は縦に並べる */
+    flex-direction: column;
 }
 
 .header {
@@ -18,42 +18,41 @@ html, body {
     line-height: 50px;
     font-weight: bold;
     box-shadow: 0 1px 5px rgba(0,0,0,0.2);
-    z-index: 1001; /* 地図より上に */
+    z-index: 1001;
+    position: relative; /* 内部の絶対配置の基準にする */
 }
 
 #map {
-    flex-grow: 1; /* 残りの画面いっぱいに広がる */
+    flex-grow: 1;
     width: 100%;
 }
 
-/* モバイル横向き（Landscape）時のレイアウト調整 */
 @media screen and (orientation: landscape) and (max-height: 500px) {
     body {
-        flex-direction: row;
+        flex-direction: row; /* 横並び */
     }
 
     .header {
-        width: 40px !important;
-        height: 100vh !important;
+        width: 40px !important; /* 横幅を固定 */
+        height: 100% !important; /* 高さを画面いっぱいに */
+        line-height: normal !important; /* 縦画面用の設定を解除 */
         display: flex;
-        align-items: center;    /* 回転した文字を左右中央に */
-        justify-content: center; /* 回転した文字を上下中央に */
-        overflow: visible;      /* はみ出しを許容して中央配置を安定させる */
-        position: relative;
-        background: #fff;
-        border-right: 1px solid #ddd;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden; /* はみ出しをカット */
     }
 
-    /* テキストを包むためのダミー要素を想定、または直接テキスト */
     .header-text {
         white-space: nowrap;
         position: absolute;
-        /* ここでは回転させず、JSで角度だけ制御する */
         font-size: 0.9rem;
-        width: 100vh; /* 画面の高さ分を確保して中央に置く */
+        /* 回転の中心を要素の真ん中に固定 */
+        transform-origin: center center;
+        /* 横画面の高さ分を「幅」として確保することで中央配置を安定させる */
+        width: 100vh; 
         text-align: center;
     }
-}
+
     #map {
         width: calc(100vw - 40px) !important;
         height: 100% !important;
