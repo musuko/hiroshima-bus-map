@@ -1,70 +1,39 @@
-/* --- 基本レイアウト --- */
 html, body {
     margin: 0;
     padding: 0;
     height: 100%;
     width: 100%;
-    overscroll-behavior: none;
     display: flex;
-    flex-direction: column; /* 基本は縦並び */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    flex-direction: column; /* PCと縦画面の基本 */
 }
 
-/* --- ヘッダー領域 --- */
 .header {
     height: 50px;
     width: 100%;
-    background: #ffffff;
-    text-align: center;
-    line-height: 50px;
-    font-weight: bold;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 1px 5px rgba(0,0,0,0.2);
     z-index: 1001;
-    flex-shrink: 0; /* ヘッダーが潰れないように固定 */
-    position: relative;
-    transition: width 0.3s, height 0.3s; /* 変化をスムーズに */
+    overflow: hidden;
 }
 
 .header-text {
-    display: inline-block;
     white-space: nowrap;
+    font-weight: bold;
+    font-size: 1.1rem;
 }
 
-/* --- 地図領域 --- */
 #map {
     flex-grow: 1;
     width: 100%;
     height: 100%;
-    z-index: 1;
 }
 
-/* --- Leafletコントロールの調整（スマホのセーフエリア対応） --- */
-.leaflet-bottom.leaflet-right {
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    right: 10px;
+/* PC（幅1024px以上）では、いかなる場合も回転させない */
+@media screen and (min-width: 1024px) {
+    body { flex-direction: column !important; }
+    .header { height: 50px !important; width: 100% !important; }
+    .header-text { transform: none !important; }
 }
-
-/* --- スマホ横向き（Landscape）時の動的調整 --- */
-/* JSで body の flexDirection が row に書き換えられた時のみ適用 
-   かつ、PC（広い画面）ではこの挙動を制限する 
-*/
-@media screen and (orientation: landscape) and (max-height: 600px) {
-    body {
-        /* JSで制御するため、ここでの flexDirection 指定は補助的 */
-        display: flex;
-    }
-
-    .header {
-        /* 横画面時はJSで幅40px、高さ100%に上書きされる想定 */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: normal !important;
-        overflow: visible;
-    }
-
-    .header-text {
-        font-size: 0.85rem;
-        /* 回転軸を中央に固定 */
-        transform-origin: center center;
-        /* 回転しても文字が切
