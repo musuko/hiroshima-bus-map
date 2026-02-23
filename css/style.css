@@ -26,39 +26,37 @@ html, body {
     width: 100%;
 }
 
-/* ★ スマホを横にした時（Landscape）のレイアウト調整 ★ */
+/* モバイル横向き（Landscape）時のレイアウト調整 */
 @media screen and (orientation: landscape) and (max-height: 500px) {
     body {
-        flex-direction: row; 
+        flex-direction: row; /* 横並びにする */
     }
 
     .header {
-        /* 幅をさらにスリムに（120px → 40px） */
-        width: 40px !important; 
-        height: 100% !important;
-        line-height: 1.2 !important;
+        width: 35px !important;  /* 幅を極限までスリム化 */
+        height: 100% !important; /* 縦いっぱいに広げる */
+        line-height: normal !important; /* 縦画面用の設定をリセット */
         display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: center;    /* 垂直中央（回転後は左右中央） */
+        justify-content: center; /* 水平中央（回転後は上下中央） */
+        padding: 0 !important;
         box-shadow: 1px 0 5px rgba(0,0,0,0.2);
-        padding: 0;
-        overflow: hidden;
+        font-size: 0.9rem;
+        order: 0;               /* 左側に配置 */
+        background: #f8f8f8;    /* 地図との境界をわかりやすく */
     }
 
-    /* ヘッダー内のテキスト（またはタイトル）を回転 */
-    .header div, .header span, .header h1 {
-        /* 文字を縦方向に並べる設定 */
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
-        transform: rotate(180deg); /* 読みやすい向きに微調整（必要に応じて） */
-        white-space: nowrap;
-        font-size: 0.9rem;
-        letter-spacing: 2px;
+    /* .header 自体ではなく、中のテキスト要素を回転させる */
+    /* 文字列が直接入っている場合に対応 */
+    .header {
+        writing-mode: vertical-rl; /* 縦書きモード */
+        text-orientation: mixed;   /* 文字の向きを適切に */
+        transform: rotate(180deg); /* 読みやすい向き（下から上）に回転 */
+        white-space: nowrap;       /* 折り返し禁止 */
     }
 
     #map {
         height: 100% !important;
-        /* 地図の幅を再計算（100vw - 40px） */
-        width: calc(100vw - 40px) !important;
+        width: calc(100vw - 35px) !important;
     }
 }
