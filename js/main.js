@@ -1,7 +1,5 @@
-// js/main.js の末尾
-
 /**
- * 画面の回転角に応じて、ヘッダーの位置（左右）と文字の向きを同期させる
+ * 画面の回転角に応じて、ヘッダーの位置と文字の向きを同期させる
  */
 function syncHeaderWithOrientation() {
     const body = document.body;
@@ -9,9 +7,12 @@ function syncHeaderWithOrientation() {
     const headerText = document.querySelector('.header-text');
     if (!header || !headerText) return;
 
-    // 横画面判定（幅が高さより大きい場合）
-    if (window.innerWidth > window.innerHeight) {
-        // 回転角取得
+    // モバイル端末（タッチ操作可能）かつ、横長画面の場合のみ実行
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isLandscape = window.innerWidth > window.innerHeight;
+
+    if (isMobile && isLandscape) {
+        // --- スマホ横持ち時の特殊レイアウト ---
         let angle = 0;
         if (window.screen && window.screen.orientation) {
             angle = window.screen.orientation.angle;
@@ -19,56 +20,64 @@ function syncHeaderWithOrientation() {
             angle = window.orientation;
         }
 
-        body.style.flexDirection = "row"; // 横並びモード
+        body.style.flexDirection = "row"; 
 
         if (angle === 90) {
-            // 【時計回り回転】ヘッダーは「右端」へ、文字は「時計回り」に
-            header.style.order = "1"; 
+            // 時計回り（右端ヘッダー）
+            header.style.order = "1";
             header.style.width = "40px";
             header.style.height = "100vh";
-            header.style.borderLeft = "1px solid #ddd";
-            header.style.borderRight = "none";
             headerText.style.transform = "rotate(90deg)";
-            
-        } else if (angle === -90 || angle === 270) {
-            // 【反時計回り回転】ヘッダーは「左端」へ、文字は「反時計回り」に
-            header.style.order = "0"; 
+        } else {
+            // 反時計回り（左端ヘッダー）
+            header.style.order = "0";
             header.style.width = "40px";
             header.style.height = "100vh";
-            header.style.borderRight = "1px solid #ddd";
-            header.style.borderLeft = "none";
             headerText.style.transform = "rotate(-90deg)";
         }
-        
-        // 横画面時は共通で line-height をリセット
         header.style.lineHeight = "normal";
-
     } else {
-        // 【縦画面】標準レイアウト
+        // --- PC または 縦持ち時の標準レイアウト ---
         body.style.flexDirection = "column";
         header.style.order = "";
         header.style.width = "100%";
         header.style.height = "50px";
         header.style.lineHeight = "50px";
-        header.style.borderRight = "none";
-        header.style.borderLeft = "none";
         headerText.style.transform = "none";
     }
 
-    // 地図の再描画（サイズ変更を即座に反映）
+    // 地図のサイズ更新
     if (window.map) {
-        // 少し遅延させるとブラウザのレンダリング確定後に実行されるので確実です
-        setTimeout(() => {
-            const center = window.map.getCenter();
-            window.map.invalidateSize();
-            window.map.panTo(center, { animate: false });
-        }, 150);
+        window.map.invalidateSize();
     }
 }
 
-// イベント登録（1つの関数に集約）
+// 既存の load イベントに統合してバスの描画を邪魔しないようにする
+window.addEventListener('load', async () => {
+    // 1. レイアウトの初期設定
+    syncHeaderWithOrientation();
+
+    // 2. 現在地の開始
+    if (typeof window.startGeolocation === 'function') {
+        window.startGeolocation();
+    }
+
+    // 3. GTFS準備
+    if (typeof window.prepareGtfsData === 'function') {
+        await window.prepareGtfsData();
+    }
+
+    // 4. バスと地図の初期化
+    if (window.map) {
+        if (typeof loadAllStops === 'function') loadAllStops();
+        
+        if (typeof window.updateBusPositions === 'function') {
+            window.updateBusPositions();
+            setInterval(() => window.updateBusPositions(), 15000);
+        }
+    }
+});
+
+// 回転イベント
 window.addEventListener('resize', syncHeaderWithOrientation);
 window.addEventListener('orientationchange', syncHeaderWithOrientation);
-
-// 起動時に実行
-document.addEventListener('DOMContentLoaded', syncHeaderWithOrientation);
