@@ -1,5 +1,4 @@
-/* style.css */
-
+/* --- 基本レイアウト --- */
 html, body {
     margin: 0;
     padding: 0;
@@ -7,54 +6,65 @@ html, body {
     width: 100%;
     overscroll-behavior: none;
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* 基本は縦並び */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* --- ヘッダー領域 --- */
 .header {
     height: 50px;
     width: 100%;
-    background: white;
+    background: #ffffff;
     text-align: center;
     line-height: 50px;
     font-weight: bold;
     box-shadow: 0 1px 5px rgba(0,0,0,0.2);
     z-index: 1001;
-    position: relative; /* 内部の絶対配置の基準にする */
+    flex-shrink: 0; /* ヘッダーが潰れないように固定 */
+    position: relative;
+    transition: width 0.3s, height 0.3s; /* 変化をスムーズに */
 }
 
+.header-text {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* --- 地図領域 --- */
 #map {
     flex-grow: 1;
     width: 100%;
+    height: 100%;
+    z-index: 1;
 }
 
-@media screen and (orientation: landscape) and (max-height: 500px) {
+/* --- Leafletコントロールの調整（スマホのセーフエリア対応） --- */
+.leaflet-bottom.leaflet-right {
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    right: 10px;
+}
+
+/* --- スマホ横向き（Landscape）時の動的調整 --- */
+/* JSで body の flexDirection が row に書き換えられた時のみ適用 
+   かつ、PC（広い画面）ではこの挙動を制限する 
+*/
+@media screen and (orientation: landscape) and (max-height: 600px) {
     body {
-        flex-direction: row; /* 横並び */
+        /* JSで制御するため、ここでの flexDirection 指定は補助的 */
+        display: flex;
     }
 
     .header {
-        /* JSで制御するため、ここでは最小限のスタイルのみ */
-        height: 100vh !important;
-        width: 40px !important;
+        /* 横画面時はJSで幅40px、高さ100%に上書きされる想定 */
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow: visible; /* 文字の回転によるはみ出しを許可 */
-        background: #fff;
-        box-shadow: 0 0 5px rgba(0,0,0,0.2);
-        z-index: 1001;
+        line-height: normal !important;
+        overflow: visible;
     }
 
     .header-text {
-        white-space: nowrap;
-        font-size: 1rem;
-        /* 回転軸を文字の中心に */
-        display: inline-block;
-    }
-
-    #map {
-        height: 100vh !important;
-        /* 幅はJSでヘッダーの位置に合わせて計算されるため、基本設定のみ */
-        flex-grow: 1;
-    }
-}
+        font-size: 0.85rem;
+        /* 回転軸を中央に固定 */
+        transform-origin: center center;
+        /* 回転しても文字が切
