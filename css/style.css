@@ -8,8 +8,10 @@ html, body {
 #map {
     height: calc(100dvh - 50px);
     width: 100vw;
+    /* position: relative; または absolute; があることを確認 */
 }
 
+/* クラス名 .header に統一 */
 .header {
     height: 50px;
     background: white;
@@ -17,9 +19,32 @@ html, body {
     line-height: 50px;
     font-weight: bold;
     box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    position: relative; /* 重なり順を安定させる */
+    z-index: 1000;
 }
 
 .leaflet-bottom.leaflet-right {
     bottom: calc(20px + env(safe-area-inset-bottom));
     right: 10px;
+}
+
+/* モバイル横向き（Landscape）時の調整 */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    .header {
+        height: 35px !important; /* 横画面はさらにスリムに */
+        line-height: 35px !important;
+        padding: 0 10px !important;
+        font-size: 0.9rem !important;
+    }
+
+    #map {
+        /* ヘッダーの高さ(35px)を引いた高さに調整 */
+        height: calc(100vh - 35px) !important;
+    }
+
+    /* ポップアップが画面を塞がないように調整 */
+    .leaflet-popup-content-wrapper {
+        max-height: 180px;
+        overflow-y: auto;
+    }
 }
