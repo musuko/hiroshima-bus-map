@@ -28,18 +28,32 @@ html, body {
 
 /* モバイル横向き（Landscape）時のレイアウト調整 */
 @media screen and (orientation: landscape) and (max-height: 500px) {
-    body { flex-direction: row; }
+    body {
+        flex-direction: row;
+    }
+
     .header {
         width: 40px !important;
-        height: 100% !important;
+        height: 100vh !important;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        white-space: nowrap;
+        align-items: center;    /* 回転した文字を左右中央に */
+        justify-content: center; /* 回転した文字を上下中央に */
+        overflow: visible;      /* はみ出しを許容して中央配置を安定させる */
+        position: relative;
         background: #fff;
-        z-index: 1001;
+        border-right: 1px solid #ddd;
     }
+
+    /* テキストを包むためのダミー要素を想定、または直接テキスト */
+    .header-text {
+        white-space: nowrap;
+        position: absolute;
+        /* ここでは回転させず、JSで角度だけ制御する */
+        font-size: 0.9rem;
+        width: 100vh; /* 画面の高さ分を確保して中央に置く */
+        text-align: center;
+    }
+}
     #map {
         width: calc(100vw - 40px) !important;
         height: 100% !important;
