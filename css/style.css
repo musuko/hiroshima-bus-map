@@ -29,30 +29,48 @@ html, body {
 /* モバイル横向き（Landscape）時のレイアウト調整 */
 @media screen and (orientation: landscape) and (max-height: 500px) {
     body {
-        flex-direction: row; /* 横並びにする */
+        flex-direction: row; 
     }
 
     .header {
-        width: 35px !important;  /* 幅を極限までスリム化 */
-        height: 100% !important; /* 縦いっぱいに広げる */
-        line-height: normal !important; /* 縦画面用の設定をリセット */
+        width: 35px !important;  
+        height: 100% !important; 
         display: flex;
-        align-items: center;    /* 垂直中央（回転後は左右中央） */
-        justify-content: center; /* 水平中央（回転後は上下中央） */
+        align-items: center;    
+        justify-content: center; 
         padding: 0 !important;
         box-shadow: 1px 0 5px rgba(0,0,0,0.2);
-        font-size: 0.9rem;
-        order: 0;               /* 左側に配置 */
-        background: #f8f8f8;    /* 地図との境界をわかりやすく */
+        background: #ffffff;
+        
+        /* 縦書きモードを解除し、回転で制御する */
+        writing-mode: horizontal-tb !important; 
+        overflow: hidden;
     }
 
-    /* .header 自体ではなく、中のテキスト要素を回転させる */
-    /* 文字列が直接入っている場合に対応 */
+    /* 文字列を「上から下」に向ける */
     .header {
-        writing-mode: vertical-rl; /* 縦書きモード */
-        text-orientation: mixed;   /* 文字の向きを適切に */
-        transform: rotate(180deg); /* 読みやすい向き（下から上）に回転 */
-        white-space: nowrap;       /* 折り返し禁止 */
+        /* 文字列を時計回りに90度回転 */
+        transform: none; 
+        display: flex;
+    }
+    
+    /* 中のテキスト要素（もしあれば）または直接のテキスト */
+    .header {
+        /* 直接文字を回転させるための設定 */
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    /* 文字の回転方向を「上から下」へ */
+    .header::before {
+        content: "広島バス・広電バス リアルタイム位置"; /* 内容を固定するか、中の要素を回転 */
+    }
+    
+    /* 要素全体を回転させるのが最も確実です */
+    .header {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(0deg); /* 180degを消して標準の縦書き(上から下)に */
     }
 
     #map {
