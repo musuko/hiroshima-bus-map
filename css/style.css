@@ -33,28 +33,28 @@ html, body {
     }
 
     .header {
-        width: 40px !important; /* 横幅を固定 */
-        height: 100% !important; /* 高さを画面いっぱいに */
-        line-height: normal !important; /* 縦画面用の設定を解除 */
+        /* JSで制御するため、ここでは最小限のスタイルのみ */
+        height: 100vh !important;
+        width: 40px !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow: hidden; /* はみ出しをカット */
+        overflow: visible; /* 文字の回転によるはみ出しを許可 */
+        background: #fff;
+        box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        z-index: 1001;
     }
 
     .header-text {
         white-space: nowrap;
-        position: absolute;
-        font-size: 0.9rem;
-        /* 回転の中心を要素の真ん中に固定 */
-        transform-origin: center center;
-        /* 横画面の高さ分を「幅」として確保することで中央配置を安定させる */
-        width: 100vh; 
-        text-align: center;
+        font-size: 1rem;
+        /* 回転軸を文字の中心に */
+        display: inline-block;
     }
 
     #map {
-        width: calc(100vw - 40px) !important;
-        height: 100% !important;
+        height: 100vh !important;
+        /* 幅はJSでヘッダーの位置に合わせて計算されるため、基本設定のみ */
+        flex-grow: 1;
     }
 }
