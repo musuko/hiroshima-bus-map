@@ -1,12 +1,17 @@
-// js/main.js の末尾など
+// js/main.js の末尾
 
-function adjustHeaderRotation() {
-    const textElement = document.querySelector('.header-text');
-    if (!textElement) return;
+/**
+ * 画面の回転角に応じて、ヘッダーの位置（左右）と文字の向きを同期させる
+ */
+function syncHeaderWithOrientation() {
+    const body = document.body;
+    const header = document.querySelector('.header');
+    const headerText = document.querySelector('.header-text');
+    if (!header || !headerText) return;
 
-    // 横画面判定
+    // 横画面判定（幅が高さより大きい場合）
     if (window.innerWidth > window.innerHeight) {
-        // 回転角取得（標準的なAPIと古いiOSの両方に対応）
+        // 回転角取得
         let angle = 0;
         if (window.screen && window.screen.orientation) {
             angle = window.screen.orientation.angle;
@@ -14,31 +19,56 @@ function adjustHeaderRotation() {
             angle = window.orientation;
         }
 
-        // angle 90: 時計回り(右)に倒した / angle -90, 270: 反時計回り(左)に倒した
+        body.style.flexDirection = "row"; // 横並びモード
+
         if (angle === 90) {
-            textElement.style.transform = "rotate(90deg)";
+            // 【時計回り回転】ヘッダーは「右端」へ、文字は「時計回り」に
+            header.style.order = "1"; 
+            header.style.width = "40px";
+            header.style.height = "100vh";
+            header.style.borderLeft = "1px solid #ddd";
+            header.style.borderRight = "none";
+            headerText.style.transform = "rotate(90deg)";
+            
         } else if (angle === -90 || angle === 270) {
-            textElement.style.transform = "rotate(-90deg)";
-        } else {
-            // angle 0 または 180 (逆さま) の時
-            textElement.style.transform = "none";
+            // 【反時計回り回転】ヘッダーは「左端」へ、文字は「反時計回り」に
+            header.style.order = "0"; 
+            header.style.width = "40px";
+            header.style.height = "100vh";
+            header.style.borderRight = "1px solid #ddd";
+            header.style.borderLeft = "none";
+            headerText.style.transform = "rotate(-90deg)";
         }
+        
+        // 横画面時は共通で line-height をリセット
+        header.style.lineHeight = "normal";
+
     } else {
-        // 縦画面
-        textElement.style.transform = "none";
+        // 【縦画面】標準レイアウト
+        body.style.flexDirection = "column";
+        header.style.order = "";
+        header.style.width = "100%";
+        header.style.height = "50px";
+        header.style.lineHeight = "50px";
+        header.style.borderRight = "none";
+        header.style.borderLeft = "none";
+        headerText.style.transform = "none";
     }
 
-    // 地図のサイズ更新も併せて実行
+    // 地図の再描画（サイズ変更を即座に反映）
     if (window.map) {
-        const center = window.map.getCenter();
-        window.map.invalidateSize();
-        window.map.panTo(center, { animate: false });
+        // 少し遅延させるとブラウザのレンダリング確定後に実行されるので確実です
+        setTimeout(() => {
+            const center = window.map.getCenter();
+            window.map.invalidateSize();
+            window.map.panTo(center, { animate: false });
+        }, 150);
     }
 }
 
-// イベント登録
-window.addEventListener('resize', adjustHeaderRotation);
-window.addEventListener('orientationchange', adjustHeaderRotation);
+// イベント登録（1つの関数に集約）
+window.addEventListener('resize', syncHeaderWithOrientation);
+window.addEventListener('orientationchange', syncHeaderWithOrientation);
 
 // 起動時に実行
-document.addEventListener('DOMContentLoaded', adjustHeaderRotation);
+document.addEventListener('DOMContentLoaded', syncHeaderWithOrientation);
