@@ -87,17 +87,28 @@ function renderMergedStops(stopMap) {
             marker.fire('click'); 
         });
 
-        // 3. クリックした時の処理（ポップアップと時刻表呼び出し）
+        // 3. クリックした時の処理
         marker.on('click', async () => {
-            const popupId = `popup-${stop.stopId}`;
-            const popupContent = `<div id="${popupId}" style="min-width:200px;">
-                <strong style="color:${markerColor}">${stop.name}</strong> (ID: ${stop.stopId})<br><hr>
-                <div class="loading">時刻表を読み込み中...</div>
-            </div>`;
+            // 【修正ポイント1】スペースをアンダースコアに置換（HTMLクラス用）
+            const safeId = String(stop.stopId).replace(/\s+/g, '_');
+            
+            // 【修正ポイント2】timetable.jsが探し出すためのクラス名(timetable-content-...)を付与したdivを作成
+            const popupContent = `
+                <div style="min-width:200px; max-height:300px; overflow-y:auto;">
+                    <strong style="color:${markerColor}">${stop.name}</strong><br>
+                    <small style="color:#999;">停留所ID: ${stop.stopId}</small>
+                    <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                    <div class="timetable-content-${safeId}">
+                        <div class="loading">時刻表を生成中...</div>
+                    </div>
+                </div>`;
+            
             marker.bindPopup(popupContent).openPopup();
             
+            // timetable.js の関数を呼び出す
             if (window.showUnifiedTimetable) {
-                window.showUnifiedTimetable(stop.stopId, stop.companies, popupId);
+                // 第一引数は検索に使うのでスペース入りの stop.stopId をそのまま渡す
+                window.showUnifiedTimetable(stop.stopId, stop.name);
             }
         });
     });
