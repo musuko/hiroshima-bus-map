@@ -1,5 +1,6 @@
 /**
  * js/stops.js
+ * 役割: バス停の統合管理と地図描画
  */
 
 async function loadAndDisplayStops() {
@@ -8,7 +9,10 @@ async function loadAndDisplayStops() {
         return;
     }
 
-    console.log("📍 バス停の地図描画を開始します...");
+    console.log("📍 バス停の統合・描画を開始します...");
+
+    // stop_id をキーにして、マーカーと会社リストを管理する
+    const stopMap = new Map();
 
     for (const company of BUS_COMPANIES) {
         try {
@@ -24,68 +28,77 @@ async function loadAndDisplayStops() {
             const latIdx = headers.findIndex(h => h.includes('stop_lat'));
             const lonIdx = headers.findIndex(h => h.includes('stop_lon'));
 
-            if (latIdx === -1 || lonIdx === -1) continue;
-
-            const markerColor = (company.id === 'hirobus') ? '#FF0000' : '#ADFF2F';
-
             lines.slice(1).forEach((line) => {
                 if (!line.trim()) return;
-
                 const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
                 if (cols.length <= Math.max(latIdx, lonIdx)) return;
 
+                const stopId = cols[idIdx];
                 const lat = parseFloat(cols[latIdx]);
                 const lon = parseFloat(cols[lonIdx]);
-                const stopId = cols[idIdx];
                 const stopName = cols[nameIdx];
 
                 if (isNaN(lat) || isNaN(lon)) return;
 
-                // 当たり判定用（透明）
-                const marker = L.circleMarker([lat, lon], {
-                    radius: 6,
-                    fillColor: markerColor,
-                    color: 'rgba(0,0,0,0)',
-                    weight: 15,
-                    opacity: 0,
-                    fillOpacity: 1
-                }).addTo(window.map);
-
-                // 見た目用（中央の丸）
-                L.circleMarker([lat, lon], {
-                    radius: 5,
-                    color: '#000',
-                    weight: 1,
-                    fill: false,
-                    interactive: false
-                }).addTo(window.map);
-
-                marker.on('click', () => {
-                    const safeId = String(stopId).replace(/\s+/g, '_');
-                    const popupHtml = `
-                        <div style="min-width:200px;">
-                            <strong>${stopName}</strong><br>
-                            <small style="color:#999;">ID: ${stopId}</small>
-                            <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                            <!-- [修正] スクロールバー用のスタイルを追加 -->
-                            <div class="timetable-content-${safeId}" style="max-height: 200px; overflow-y: auto;">
-                                <div class="loading" style="font-size:11px; color:#888;">時刻表を取得中...</div>
-                            </div>
-                        </div>`;
-                    
-                    marker.bindPopup(popupHtml).openPopup();
-                    
-                    if (window.TimetableManager && window.TimetableManager.showTimetable) {
-                        window.TimetableManager.showTimetable(stopId, company.id);
+                if (stopMap.has(stopId)) {
+                    // すでに同じIDのバス停がある場合（共通バス停）
+                    const entry = stopMap.get(stopId);
+                    if (!entry.companies.includes(company.id)) {
+                        entry.companies.push(company.id);
+                        // 色を紫に変更
+                        entry.marker.setStyle({
+                            fillColor: window.APP_CONFIG.COMPANIES.shared.color
+                        });
                     }
-                });
-            });
-            console.log(`✅ ${company.name}: バス停描画完了`);
+                } else {
+                    // 新規バス停
+                    const markerColor = (company.id === 'hirobus') ? 
+                        window.APP_CONFIG.COMPANIES.hirobus.color : 
+                        window.APP_CONFIG.COMPANIES.hiroden.color;
 
-        } catch (error) {
-            console.error(`${company.name} 処理エラー:`, error);
-        }
+                    const marker = L.circleMarker([lat, lon], {
+                        radius: 6,
+                        fillColor: markerColor,
+                        color: 'rgba(0,0,0,0)',
+                        weight: 15,
+                        opacity: 0,
+                        fillOpacity: 1
+                    }).addTo(window.map);
+
+                    // 見た目用（中央の丸）
+                    L.circleMarker([lat, lon], {
+                        radius: 5, color: '#000', weight: 1, fill: false, interactive: false
+                    }).addTo(window.map);
+
+                    const entry = {
+                        marker: marker,
+                        companies: [company.id],
+                        name: stopName
+                    };
+                    stopMap.set(stopId, entry);
+
+                    // クリックイベント
+                    marker.on('click', () => {
+                        const safeId = String(stopId).replace(/\s+/g, '_');
+                        const popupHtml = `
+                            <div style="min-width:220px;">
+                                <strong>${entry.name}</strong><br>
+                                <small style="color:#999;">ID: ${stopId}</small>
+                                <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                                <div class="timetable-content-${safeId}" style="max-height: 250px; overflow-y: auto;">
+                                    <div class="loading">時刻表を準備中...</div>
+                                </div>
+                            </div>`;
+                        marker.bindPopup(popupHtml).openPopup();
+                        
+                        // TimetableManager に会社リストを渡して呼び出し
+                        window.TimetableManager.showTimetable(stopId, entry.companies);
+                    });
+                }
+            });
+        } catch (e) { console.error(e); }
     }
+    console.log(`✅ バス停の描画が完了しました。総バス停数: ${stopMap.size}`);
 }
 
 loadAndDisplayStops();
