@@ -48,8 +48,8 @@ window.TimetableManager = {
      */
     async _getStopTimes(company, stopId, validTripIds) {
         const safeStopId = encodeURIComponent(stopId);
-        const apiUrl = `/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
-        
+        // --- 修正後：VercelのURLを直接指定する ---
+        const apiUrl = `https://hiroden-api.vercel.app/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
         try {
             const res = await fetch(apiUrl);
             if (!res.ok) throw new Error("APIレスポンスエラー");
