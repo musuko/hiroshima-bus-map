@@ -121,22 +121,29 @@ window.CalendarManager = {
             const text = await res.text();
             const lines = text.trim().split(/\r?\n/);
             const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            
             const sIdx = head.indexOf('service_id');
             const tIdx = head.indexOf('trip_id');
+            const rIdx = head.indexOf('route_id'); // 系統ID
+            const hIdx = head.indexOf('trip_headsign'); // 行先
 
-            const validTrips = new Set();
+            const validTripsMap = new Map(); // Set から Map に変更
             const activeSet = new Set(activeServiceIds);
 
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
                 if (activeSet.has(cols[sIdx])) {
-                    validTrips.add(cols[tIdx]);
+                    // trip_id をキーにして、系統と行先を保存
+                    validTripsMap.set(cols[tIdx], {
+                        routeId: cols[rIdx] || "",
+                        headsign: cols[hIdx] || "運行便"
+                    });
                 }
             }
-            return validTrips;
+            return validTripsMap;
         } catch (e) {
             console.error("trips.txt 読み込み失敗:", e);
-            return new Set();
+            return new Map();
         }
     }
 };
