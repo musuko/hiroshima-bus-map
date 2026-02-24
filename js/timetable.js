@@ -1,5 +1,6 @@
 /**
  * js/timetable.js
+ * 修正点: 文法エラーの解消と Vercel API (destId) 連携
  */
 
 window.TimetableManager = {
@@ -13,50 +14,60 @@ window.TimetableManager = {
         let combinedTimes = [];
 
         for (const companyId of companyIds) {
-            const company = BUS_COMPANIES.find(c => c.id === companyId);
+            const company = window.BUS_COMPANIES.find(c => c.id === companyId);
             if (!company) continue;
 
             try {
+                // 1. カレンダー判定
                 const activeServiceIds = await window.CalendarManager.getActiveServiceIds(company);
+                if (activeServiceIds.length === 0) continue;
+
+                // 2. 有効な trip_id 情報を取得 (Mapが返る)
                 const tripInfoMap = await window.CalendarManager.getValidTripIds(company, activeServiceIds);
+
+                // 3. Vercel API から取得
                 const times = await this._getStopTimes(company, stopId, tripInfoMap);
                 combinedTimes = combinedTimes.concat(times);
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(`${companyId} 取得失敗:`, e); 
+            }
         }
 
         combinedTimes.sort((a, b) => a.time.localeCompare(b.time));
         this._renderCombinedTimetable(safeId, combinedTimes);
     },
 
-async _getStopTimes(company, stopId, validTripIds) {
+    async _getStopTimes(company, stopId, tripInfoMap) {
         const safeStopId = encodeURIComponent(stopId);
         const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
         
         try {
             const res = await fetch(apiUrl);
-            if (!res.ok) {
-                console.error(`❌ APIエラー: ${res.status}`);
-                return [];
-            }
-            const data = await res.json();
+            if (!res.ok) throw new Error("API通信エラー");
+            const data = await res.json(); 
             
-            // 【調査ログ1】APIから何件届いたか？
-            console.log(`📡 API受信結果 (${company.id}): ${data.length}件届きました`, data.slice(0, 3));
-
             const results = [];
             data.forEach(item => {
-                // 【調査ログ2】フィルタリングの成否を確認
-                const hasTrip = validTripIds.has(item.tripId || item.tId); // プロパティ名が合っているか
-                
-                if (hasTrip) {
-                    const info = tripInfoMap.get(item.tripId || item.tId);
-                    // ... 略 ...
-                    results.push({ ... });
+                // Vercelからのキー名 (tripId) が tripInfoMap にあるか確認
+                if (tripInfoMap.has(item.tripId)) {
+                    const info = tripInfoMap.get(item.tripId);
+                    
+                    // routes.txt から系統情報を引く
+                    const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
+                    
+                    // stopLookup から終点IDの名前を引く
+                    const destInfo = window.stopLookup[item.destId];
+                    const destinationName = destInfo ? destInfo.name : "終点不明";
+
+                    results.push({
+                        time: item.time.substring(0, 5),
+                        routeShort: routeData.shortName,
+                        destination: destinationName,
+                        companyId: company.id,
+                        companyName: company.name
+                    });
                 }
             });
-
-            // 【調査ログ3】最終的に残った件数
-            console.log(`✅ フィルタリング後 (${company.id}): ${results.length}件残りました`);
             return results;
         } catch (err) {
             console.error("fetch error:", err);
@@ -73,7 +84,10 @@ async _getStopTimes(company, stopId, validTripIds) {
             return;
         }
 
-        let html = `<table style="width:100%; border-collapse:collapse; font-size:12px;">`;
+        const maxHeight = window.APP_CONFIG.UI.TIMETABLE_MAX_HEIGHT || "250px";
+
+        let html = `<div style="max-height:${maxHeight}; overflow-y:auto;">`;
+        html += `<table style="width:100%; border-collapse:collapse; font-size:12px;">`;
         html += `<thead style="position:sticky; top:0; background:#eee; z-index:1;">
                     <tr style="text-align:left; border-bottom:2px solid #ccc;">
                         <th style="padding:6px 4px;">時刻</th>
@@ -97,8 +111,9 @@ async _getStopTimes(company, stopId, validTripIds) {
                 </td>
             </tr>`;
         });
-        html += `</tbody></table>`;
-        
+        html += `</tbody></table></div>`;
         container.innerHTML = html;
     }
 };
+
+console.log("✅ timetable.js 修正完了");
