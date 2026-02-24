@@ -1,122 +1,188 @@
-// js/stops.js
+/**
+ * js/timetable.js
+ * 役割: バス停クリック時に、Vercel APIを利用して「今日の」時刻表を表示する
+ */
 
-async function loadAllStops() {
-    if (!window.map) return;
-    
-    const activeCompanies = BUS_COMPANIES.filter(c => c.active);
-    const stopMap = {}; // stop_id をキーにして統合する辞書
+window.TimetableManager = {
+    /**
+     * メイン関数: バス停マーカーのクリック時に呼ばれる
+     */
+    async showTimetable(stopId, companyId) {
+        // HTMLのクラス名用にスペースをアンダースコアに変換
+        const safeId = String(stopId).replace(/\s+/g, '_');
+        const containerSelector = `.timetable-content-${safeId}`;
+        
+        console.log(`🚏 時刻表取得開始: ID="${stopId}", Company="${companyId}"`);
+        
+        const company = BUS_COMPANIES.find(c => c.id === companyId);
+        if (!company) {
+            console.error("会社情報が見つかりません:", companyId);
+            return;
+        }
 
-    for (const company of activeCompanies) {
-        try { // tryはループの内側に入れるのが安全です
-            const filePath = `${company.staticPath}stops.txt`;
-            const response = await fetch(filePath);
-            if (!response.ok) continue;
+        try {
+            // 1. 今日有効な service_id を判定 (calendar.txt, calendar_dates.txt を使用)
+            const activeServiceIds = await this._getTodayServiceIds(company);
+            if (activeServiceIds.length === 0) {
+                this._renderNoData(safeId, "本日のサービス設定が見つかりません");
+                return;
+            }
 
-            const text = await response.text();
-            const lines = text.trim().split(/\r?\n/);
-            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            // 2. trips.txt を読み込み、今日運行している trip_id のセットを作る
+            const validTripIds = await this._getValidTripIds(company, activeServiceIds);
 
-            lines.slice(1).forEach(line => {
-                const c = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                const id = c[head.indexOf('stop_id')];
-                const name = c[head.indexOf('stop_name')];
-                const lat = parseFloat(c[head.indexOf('stop_lat')]);
-                const lon = parseFloat(c[head.indexOf('stop_lon')]);
+            // 3. Vercel API を叩いて、このバス停の通過時刻を高速抽出
+            const times = await this._getStopTimes(company, stopId, validTripIds);
 
-                if (!id || !name || isNaN(lat)) return;
+            // 4. 結果を画面（ポップアップ内）に描画
+            this._renderTimetable(safeId, company.name, times);
 
-                // --- stop_id をキーにする（共通IDによる統合） ---
-                if (!stopMap[id]) {
-                    stopMap[id] = {
-                        stopId: id,
-                        name: name,
-                        lat: lat,
-                        lon: lon,
-                        companies: [] 
-                    };
-                }
+        } catch (e) {
+            console.error("時刻表生成エラー:", e);
+            this._renderNoData(safeId, "データの読み込みに失敗しました");
+        }
+    },
+
+    /**
+     * Vercel API から、特定のバス停の行だけを取得する
+     */
+    async _getStopTimes(company, stopId, validTripIds) {
+        const safeStopId = encodeURIComponent(stopId);
+        const apiUrl = `/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+        
+        try {
+            const res = await fetch(apiUrl);
+            if (!res.ok) throw new Error("APIレスポンスエラー");
+            
+            const lines = await res.json(); 
+            const results = [];
+
+            lines.forEach(line => {
+                const cols = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
                 
-                if (!stopMap[id].companies.includes(company.id)) {
-                    stopMap[id].companies.push(company.id);
+                // GTFS標準順序: 0:trip_id, 1:arrival_time
+                const tripId = cols[0];
+                const arrivalTime = cols[1];
+
+                // trips.txtで確認した「今日運行する便」のみを採用
+                if (validTripIds.has(tripId)) {
+                    results.push({
+                        time: arrivalTime.substring(0, 5), // "HH:MM:SS" -> "HH:MM"
+                        headsign: "運行便" 
+                    });
                 }
             });
-        } catch (e) {
-            console.error(`${company.name} のバス停取得失敗:`, e);
+
+            // 時刻順に並び替え
+            return results.sort((a, b) => a.time.localeCompare(b.time));
+        } catch (err) {
+            console.error("API fetch error:", err);
+            return [];
         }
-    }
+    },
 
-    renderMergedStops(stopMap);
-}
+    /**
+     * 曜日と日付から今日有効な service_id のリストを取得
+     */
+    async _getTodayServiceIds(company) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}${m}${d}`;
 
-function renderMergedStops(stopMap) {
-    const targetMap = window.map;
-    
-    Object.values(stopMap).forEach(stop => {
-        let markerColor = "#3388ff"; 
+        // 基本の曜日ID
+        let serviceIds = await this._getIdsByWeekday(company, now);
 
-        const companies = stop.companies;
+        // 例外(祝日など)の適用
+        try {
+            const res = await fetch(`${company.staticPath}calendar_dates.txt`);
+            if (res.ok) {
+                const text = await res.text();
+                const lines = text.trim().split(/\r?\n/);
+                const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                const sIdx = head.indexOf('service_id');
+                const dIdx = head.indexOf('date');
+                const eIdx = head.indexOf('exception_type');
 
-        if (companies.length > 1) {
-            markerColor = "#9400D3"; // 共通：紫
-        } else if (companies.includes('hiroden')) {
-            markerColor = "#82c91e"; // 広電：黄緑
-        } else if (companies.includes('hirobus')) {
-            markerColor = "#e60012"; // 広バス：赤
-        }
-
-        // 1. 本体のマーカー（見た目用）
-        const marker = L.circleMarker([stop.lat, stop.lon], {
-            radius: 7,
-            fillColor: "#ffffff",
-            color: markerColor,
-            weight: 3,
-            opacity: 1,
-            fillOpacity: 0.9,
-            className: 'clickable-stop' 
-        }).addTo(targetMap);
-        
-        // 2. 透明な大きな円を重ねてクリック判定を強化（半径20px）
-        L.circleMarker([stop.lat, stop.lon], {
-            radius: 20, 
-            stroke: false,
-            fillColor: 'transparent', 
-            fillOpacity: 0
-        }).addTo(targetMap).on('click', (e) => {
-            // 地図の他のイベント（クリックでポップアップが閉じる等）を防止しつつ本体を叩く
-            L.DomEvent.stopPropagation(e);
-            marker.fire('click'); 
-        });
-
-        // 3. クリックした時の処理
-        marker.on('click', async () => {
-            // 1. スペースをアンダースコアに置換（HTMLのid/class名用）
-            const safeId = String(stop.stopId).replace(/\s+/g, '_');
-            
-            // 2. ポップアップのHTMLを作成（ヘッダー情報は残す！）
-            const popupHtml = `
-                <div style="min-width:200px; max-height:300px; overflow-y:auto;">
-                    <strong style="color:${markerColor}">${stop.name}</strong><br>
-                    <small style="color:#999;">停留所ID: ${stop.stopId}</small>
-                    <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                    <div class="timetable-content-${safeId}">
-                        <div class="loading">時刻表を生成中...</div>
-                    </div>
-                </div>`;
-            
-            // ポップアップをセットして開く
-            marker.bindPopup(popupHtml).openPopup();
-            
-            // 3. timetable.js の関数を呼び出す
-            // ※ 呼び出し名と引数(stopId, companyId)に注意！
-            if (window.TimetableManager && window.TimetableManager.showTimetable) {
-                // 第一引数: スペース入りの元のID
-                // 第二引数: そのバス停の会社ID（hiroden か hirobus）
-                window.TimetableManager.showTimetable(stop.stopId, stop.companyId);
-            } else {
-                console.error("TimetableManager が読み込まれていません");
+                const idSet = new Set(serviceIds);
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                    if (cols[dIdx] === todayStr) {
+                        if (cols[eIdx] === '1') idSet.add(cols[sIdx]);
+                        else if (cols[eIdx] === '2') idSet.delete(cols[sIdx]);
+                    }
+                }
+                serviceIds = Array.from(idSet);
             }
-        });
-    console.log(`✅ 色分け完了（広電:黄緑 / 広バス:赤 / 共通:紫）`);
-}
+        } catch (err) { /* 無視 */ }
 
-loadAllStops();
+        return serviceIds;
+    },
+
+    async _getIdsByWeekday(company, dateObj) {
+        try {
+            const res = await fetch(`${company.staticPath}calendar.txt`);
+            const text = await res.text();
+            const lines = text.trim().split(/\r?\n/);
+            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const todayCol = dayNames[dateObj.getDay()];
+            
+            const sIdx = head.indexOf('service_id');
+            const dIdx = head.indexOf(todayCol);
+            
+            const ids = [];
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (cols[dIdx] === '1') ids.push(cols[sIdx]);
+            }
+            return ids;
+        } catch (e) { return []; }
+    },
+
+    async _getValidTripIds(company, activeServiceIds) {
+        const res = await fetch(`${company.staticPath}trips.txt`);
+        const text = await res.text();
+        const lines = text.trim().split(/\r?\n/);
+        const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+        const sIdx = head.indexOf('service_id');
+        const tIdx = head.indexOf('trip_id');
+
+        const validTrips = new Set();
+        const activeSet = new Set(activeServiceIds);
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            if (activeSet.has(cols[sIdx])) validTrips.add(cols[tIdx]);
+        }
+        return validTrips;
+    },
+
+    _renderTimetable(safeId, companyName, times) {
+        const container = document.querySelector(`.timetable-content-${safeId}`);
+        if (!container) return;
+
+        if (times.length === 0) {
+            container.innerHTML = "<p>本日の運行予定はありません。</p>";
+            return;
+        }
+
+        let html = `<div style="font-weight:bold; margin-bottom:5px; border-bottom:2px solid #333;">${companyName}</div>`;
+        html += `<table style="width:100%; font-size:12px;">`;
+        times.forEach(t => {
+            html += `<tr style="border-bottom:1px solid #eee;">
+                <td style="padding:4px 0; font-size:1.1em; font-weight:bold;">${t.time}</td>
+                <td style="padding:4px 0; text-align:right; color:#666;">${t.headsign}</td>
+            </tr>`;
+        });
+        html += `</table>`;
+        container.innerHTML = html;
+    },
+
+    _renderNoData(safeId, msg) {
+        const container = document.querySelector(`.timetable-content-${safeId}`);
+        if (container) container.innerHTML = `<p>${msg}</p>`;
+    }
+};
+
+console.log("✅ timetable.js (全コード更新完了)");
