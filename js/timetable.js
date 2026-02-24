@@ -53,10 +53,13 @@ window.TimetableManager = {
                 
                 if (tripInfoMap.has(tripId)) {
                     const info = tripInfoMap.get(tripId);
+                    // --- routes.txt から情報を引く ---
+                    const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "不明な路線" };
+                
                     results.push({
                         time: cols[1].substring(0, 5),
-                        routeId: info.routeId,
-                        headsign: info.headsign,
+                        routeShort: routeData.shortName, // 系統番号
+                        routeLong: routeData.longName,   // 路線名（行先）
                         companyId: company.id,
                         companyName: company.name
                     });
@@ -87,15 +90,15 @@ window.TimetableManager = {
         times.forEach(t => {
             const config = window.APP_CONFIG.COMPANIES[t.companyId];
             const dotHtml = `<span style="display:inline-block; width:8px; height:8px; background:${config.color}; border-radius:50%; margin-right:4px;"></span>`;
-
+    
             html += `<tr style="border-bottom:1px solid #eee;">
                 <td style="padding:8px 5px; font-weight:bold; font-size:1.2em;">${t.time}</td>
                 <td style="padding:8px 5px;">
                     <div style="font-size:10px; color:#777;">${dotHtml}${t.companyName}</div>
-                    <div style="font-weight:bold;">${t.routeId}</div>
+                    <div style="font-weight:bold; color:#333;">${t.routeShort}</div>
                 </td>
                 <td style="padding:8px 5px; vertical-align:middle;">
-                    <div style="color:#333;">${t.headsign}</div>
+                    <div style="color:#000; font-weight:500;">${t.routeLong}</div>
                 </td>
             </tr>`;
         });
