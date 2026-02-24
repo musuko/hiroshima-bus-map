@@ -89,11 +89,11 @@ function renderMergedStops(stopMap) {
 
         // 3. クリックした時の処理
         marker.on('click', async () => {
-            // 【修正ポイント1】スペースをアンダースコアに置換（HTMLクラス用）
+            // 1. スペースをアンダースコアに置換（HTMLのid/class名用）
             const safeId = String(stop.stopId).replace(/\s+/g, '_');
             
-            // 【修正ポイント2】timetable.jsが探し出すためのクラス名(timetable-content-...)を付与したdivを作成
-            const popupContent = `
+            // 2. ポップアップのHTMLを作成（ヘッダー情報は残す！）
+            const popupHtml = `
                 <div style="min-width:200px; max-height:300px; overflow-y:auto;">
                     <strong style="color:${markerColor}">${stop.name}</strong><br>
                     <small style="color:#999;">停留所ID: ${stop.stopId}</small>
@@ -103,15 +103,19 @@ function renderMergedStops(stopMap) {
                     </div>
                 </div>`;
             
-            marker.bindPopup(popupContent).openPopup();
+            // ポップアップをセットして開く
+            marker.bindPopup(popupHtml).openPopup();
             
-            // timetable.js の関数を呼び出す
-            if (window.showUnifiedTimetable) {
-                // 第一引数は検索に使うのでスペース入りの stop.stopId をそのまま渡す
-                window.showUnifiedTimetable(stop.stopId, stop.name);
+            // 3. timetable.js の関数を呼び出す
+            // ※ 呼び出し名と引数(stopId, companyId)に注意！
+            if (window.TimetableManager && window.TimetableManager.showTimetable) {
+                // 第一引数: スペース入りの元のID
+                // 第二引数: そのバス停の会社ID（hiroden か hirobus）
+                window.TimetableManager.showTimetable(stop.stopId, stop.companyId);
+            } else {
+                console.error("TimetableManager が読み込まれていません");
             }
         });
-    });
     console.log(`✅ 色分け完了（広電:黄緑 / 広バス:赤 / 共通:紫）`);
 }
 
