@@ -28,35 +28,40 @@ window.TimetableManager = {
         this._renderCombinedTimetable(safeId, combinedTimes);
     },
 
-    async _getStopTimes(company, stopId, tripInfoMap) {
+async _getStopTimes(company, stopId, validTripIds) {
         const safeStopId = encodeURIComponent(stopId);
         const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
         
         try {
             const res = await fetch(apiUrl);
-            const data = await res.json(); // dataは { tripId, time, destId } の配列
+            if (!res.ok) {
+                console.error(`❌ APIエラー: ${res.status}`);
+                return [];
+            }
+            const data = await res.json();
             
+            // 【調査ログ1】APIから何件届いたか？
+            console.log(`📡 API受信結果 (${company.id}): ${data.length}件届きました`, data.slice(0, 3));
+
             const results = [];
             data.forEach(item => {
-                if (tripInfoMap.has(item.tripId)) {
-                    const info = tripInfoMap.get(item.tripId);
-                    const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
-                    
-                    // 【改善：stop_times.txtから抽出された終点IDを使って名前を引く】
-                    const destInfo = window.stopLookup[item.destId];
-                    const destinationName = destInfo ? destInfo.name : "終点不明";
-
-                    results.push({
-                        time: item.time.substring(0, 5),
-                        routeShort: routeData.shortName,
-                        destination: destinationName,
-                        companyId: company.id,
-                        companyName: company.name
-                    });
+                // 【調査ログ2】フィルタリングの成否を確認
+                const hasTrip = validTripIds.has(item.tripId || item.tId); // プロパティ名が合っているか
+                
+                if (hasTrip) {
+                    const info = tripInfoMap.get(item.tripId || item.tId);
+                    // ... 略 ...
+                    results.push({ ... });
                 }
             });
+
+            // 【調査ログ3】最終的に残った件数
+            console.log(`✅ フィルタリング後 (${company.id}): ${results.length}件残りました`);
             return results;
-        } catch (err) { return []; }
+        } catch (err) {
+            console.error("fetch error:", err);
+            return [];
+        }
     },
 
     _renderCombinedTimetable(safeId, times) {
