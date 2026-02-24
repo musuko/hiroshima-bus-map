@@ -3,47 +3,44 @@
  */
 
 window.TimetableManager = {
-    /**
-     * @param {string} stopId 
-     * @param {string[]} companyIds 会社IDの配列（共通バス停対応）
-     */
     async showTimetable(stopId, companyIds) {
         const safeId = String(stopId).replace(/\s+/g, '_');
         const container = document.querySelector(`.timetable-content-${safeId}`);
         if (!container) return;
 
-        container.innerHTML = ""; // 読み込み表示をクリア
+        container.innerHTML = "<div class='loading'>時刻表を統合中...</div>";
 
-        // 渡された会社リスト（1つまたは複数）を順番に取得
+        let combinedTimes = [];
+
+        // 1. 全ての会社からデータを収集
         for (const companyId of companyIds) {
             const company = BUS_COMPANIES.find(c => c.id === companyId);
             if (!company) continue;
 
             try {
-                // 1. カレンダー判定
                 const activeServiceIds = await window.CalendarManager.getActiveServiceIds(company);
                 if (activeServiceIds.length === 0) continue;
 
-                // 2. 有効な trip_id を抽出
-                const validTripIds = await window.CalendarManager.getValidTripIds(company, activeServiceIds);
+                // 改良した getValidTripIds (Mapが返る)
+                const tripInfoMap = await window.CalendarManager.getValidTripIds(company, activeServiceIds);
 
-                // 3. Vercel API から取得
-                const times = await this._getStopTimes(company, stopId, validTripIds);
-
-                // 4. 表示（既存の表示に追加していく）
-                this._renderTimetableSection(safeId, company, times);
+                // Vercel API から取得
+                const times = await this._getStopTimes(company, stopId, tripInfoMap);
+                combinedTimes = combinedTimes.concat(times);
 
             } catch (e) {
-                console.error(`${companyId} の取得エラー:`, e);
+                console.error(`${companyId} 取得失敗:`, e);
             }
         }
 
-        if (container.innerHTML === "") {
-            container.innerHTML = "<p>本日の運行予定はありません。</p>";
-        }
+        // 2. 全データを時刻順にソート
+        combinedTimes.sort((a, b) => a.time.localeCompare(b.time));
+
+        // 3. まとめて描画
+        this._renderCombinedTimetable(safeId, combinedTimes);
     },
 
-    async _getStopTimes(company, stopId, validTripIds) {
+    async _getStopTimes(company, stopId, tripInfoMap) {
         const safeStopId = encodeURIComponent(stopId);
         const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
         try {
@@ -52,33 +49,58 @@ window.TimetableManager = {
             const results = [];
             lines.forEach(line => {
                 const cols = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                if (validTripIds.has(cols[0])) {
-                    results.push({ time: cols[1].substring(0, 5), headsign: "運行便" });
+                const tripId = cols[0];
+                
+                if (tripInfoMap.has(tripId)) {
+                    const info = tripInfoMap.get(tripId);
+                    results.push({
+                        time: cols[1].substring(0, 5),
+                        routeId: info.routeId,
+                        headsign: info.headsign,
+                        companyId: company.id,
+                        companyName: company.name
+                    });
                 }
             });
-            return results.sort((a, b) => a.time.localeCompare(b.time));
+            return results;
         } catch (err) { return []; }
     },
 
-    /**
-     * 各会社ごとの時刻表セクションを描画
-     */
-    _renderTimetableSection(safeId, company, times) {
+    _renderCombinedTimetable(safeId, times) {
         const container = document.querySelector(`.timetable-content-${safeId}`);
-        if (!container || times.length === 0) return;
+        if (!container) return;
 
-        const companyColor = window.APP_CONFIG.COMPANIES[company.id]?.textColor || "#333";
+        if (times.length === 0) {
+            container.innerHTML = "<p>本日の運行予定はありません。</p>";
+            return;
+        }
 
-        let html = `<div style="font-weight:bold; margin-top:10px; border-bottom:2px solid ${companyColor}; color:${companyColor};">${company.name}</div>`;
-        html += `<table style="width:100%; font-size:12px; margin-bottom:10px;">`;
+        let html = `<table style="width:100%; border-collapse:collapse; font-size:12px;">`;
+        html += `<thead style="position:sticky; top:0; background:#f8f8f8; z-index:1;">
+                    <tr style="border-bottom:2px solid #ddd; text-align:left;">
+                        <th style="padding:5px;">時刻</th>
+                        <th style="padding:5px;">系統</th>
+                        <th style="padding:5px;">行先</th>
+                    </tr>
+                 </thead><tbody>`;
+
         times.forEach(t => {
+            const config = window.APP_CONFIG.COMPANIES[t.companyId];
+            const dotHtml = `<span style="display:inline-block; width:8px; height:8px; background:${config.color}; border-radius:50%; margin-right:4px;"></span>`;
+
             html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:4px 0; font-weight:bold; width:50px;">${t.time}</td>
-                <td style="padding:4px 0; text-align:right; color:#666;">${t.headsign}</td>
+                <td style="padding:8px 5px; font-weight:bold; font-size:1.2em;">${t.time}</td>
+                <td style="padding:8px 5px;">
+                    <div style="font-size:10px; color:#777;">${dotHtml}${t.companyName}</div>
+                    <div style="font-weight:bold;">${t.routeId}</div>
+                </td>
+                <td style="padding:8px 5px; vertical-align:middle;">
+                    <div style="color:#333;">${t.headsign}</div>
+                </td>
             </tr>`;
         });
-        html += `</table>`;
+        html += `</tbody></table>`;
         
-        container.innerHTML += html;
+        container.innerHTML = html;
     }
 };
