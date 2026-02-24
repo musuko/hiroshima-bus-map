@@ -1,10 +1,9 @@
 /**
  * js/stops.js
- * 役割: バス停データを読み込み、地図にマーカーを配置する（軽量版）
+ * 役割: バス停データを読み込み、地図にマーカーを配置する
  */
 
 async function loadAndDisplayStops() {
-    // 地図 (window.map) が準備できていない場合は、少し待ってから再試行
     if (!window.map) {
         setTimeout(loadAndDisplayStops, 500);
         return;
@@ -12,7 +11,6 @@ async function loadAndDisplayStops() {
 
     console.log("📍 バス停の地図描画を開始します...");
 
-    // config.js で定義されている BUS_COMPANIES を使用
     for (const company of BUS_COMPANIES) {
         try {
             const response = await fetch(`${company.staticPath}stops.txt`);
@@ -20,40 +18,66 @@ async function loadAndDisplayStops() {
 
             const text = await response.text();
             const lines = text.trim().split(/\r?\n/);
-            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            // ヘッダーをきれいに掃除（目に見えない文字を削除）
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
 
-            const idIdx = headers.indexOf('stop_id');
-            const nameIdx = headers.indexOf('stop_name');
-            const latIdx = headers.indexOf('stop_lat');
-            const lonIdx = headers.indexOf('stop_lon');
+            console.log(`${company.name} ヘッダー解析結果:`, headers);
+
+            // 列の番号を探す（部分一致や小文字にも対応）
+            const idIdx = headers.findIndex(h => h.includes('stop_id'));
+            const nameIdx = headers.findIndex(h => h.includes('stop_name'));
+            const latIdx = headers.findIndex(h => h.includes('stop_lat'));
+            const lonIdx = headers.findIndex(h => h.includes('stop_lon'));
+
+            // 必須の列（緯度・経度）が見つからない場合はスキップ
+            if (latIdx === -1 || lonIdx === -1) {
+                console.error(`❌ ${company.name}: 緯度(stop_lat)または経度(stop_lon)の列が見つかりません。ヘッダーを確認してください。`);
+                continue;
+            }
 
             const markerColor = (company.id === 'hirobus') ? '#FF0000' : '#ADFF2F';
+            let successCount = 0;
 
-            lines.slice(1).forEach(line => {
+            lines.slice(1).forEach((line, index) => {
+                if (!line.trim()) return; // 空行は無視
+
                 const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-                if (cols.length <= latIdx) return;
+                
+                // 列の数が足りない、またはデータが空の場合は無視
+                if (cols.length <= Math.max(latIdx, lonIdx)) return;
 
                 const lat = parseFloat(cols[latIdx]);
                 const lon = parseFloat(cols[lonIdx]);
                 const stopId = cols[idIdx];
                 const stopName = cols[nameIdx];
 
-                if (isNaN(lat) || isNaN(lon)) return;
+                // 座標が正しい数字でない場合は無視（これが今回のエラー対策）
+                if (isNaN(lat) || isNaN(lon)) {
+                    // 最初の数件だけ警告を出す（ログが埋まらないように）
+                    if (successCount < 1) console.warn(`データ不正(行 ${index+2}):`, line);
+                    return;
+                }
 
-                // 地図に円形マーカーを追加
-                const marker = L.circleMarker([stop.lat, stop.lon], {
-                    radius: 6,              // 見た目の半径を少しだけ大きく（6〜8くらいがおすすめ）
-                    fillColor: markerColor, // 中の色
-                    fillOpacity: 1,         // 中の色をくっきりさせる
-                    
-                    // 【ここがポイント】
-                    weight: 15,             // 透明な「縁（ふち）」の太さを15〜20に設定
-                    color: 'rgba(0,0,0,0)', // 縁の色を完全に透明にする（当たり判定だけが広がる）
-                    
-                    interactive: true       // クリックイベントを有効化
+                // 地図に円形マーカーを追加（当たり判定を広く設定）
+                const marker = L.circleMarker([lat, lon], {
+                    radius: 6,
+                    fillColor: markerColor,
+                    color: 'rgba(0,0,0,0)', // 当たり判定用の透明な縁
+                    weight: 15,             // タップしやすく
+                    opacity: 0,             // 縁は見せない
+                    fillOpacity: 1          // 中身はくっきり
                 }).addTo(window.map);
 
-                // クリックイベント: ポップアップを表示し、時刻表を呼び出す
+                // 中央の小さな黒枠（見た目用）
+                L.circleMarker([lat, lon], {
+                    radius: 5,
+                    color: '#000',
+                    weight: 1,
+                    fill: false,
+                    interactive: false
+                }).addTo(window.map);
+
+                // クリックイベント
                 marker.on('click', () => {
                     const safeId = String(stopId).replace(/\s+/g, '_');
                     const popupHtml = `
@@ -68,19 +92,19 @@ async function loadAndDisplayStops() {
                     
                     marker.bindPopup(popupHtml).openPopup();
                     
-                    // TimetableManager (timetable.js) を呼び出し
                     if (window.TimetableManager && window.TimetableManager.showTimetable) {
                         window.TimetableManager.showTimetable(stopId, company.id);
                     }
                 });
+                successCount++;
             });
-            console.log(`✅ ${company.name} のバス停を描画しました`);
+
+            console.log(`✅ ${company.name}: ${successCount} 件のバス停を描画しました。`);
 
         } catch (error) {
-            console.error(`${company.name} 描画失敗:`, error);
+            console.error(`${company.name} 処理エラー:`, error);
         }
     }
 }
 
-// 自動実行
 loadAndDisplayStops();
