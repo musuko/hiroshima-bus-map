@@ -29,6 +29,10 @@ window.APP_CONFIG = {
             color: '#FF0000', // 赤
             textColor: '#e60012'
         }
+        shared:  { 
+            color: '#A020F0',　// 紫色を追加
+            textColor: '#800080'
+        } 
     }
 };
 
