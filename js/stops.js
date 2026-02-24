@@ -1,6 +1,5 @@
 /**
  * js/stops.js
- * 役割: バス停データを読み込み、地図にマーカーを配置する
  */
 
 async function loadAndDisplayStops() {
@@ -18,32 +17,21 @@ async function loadAndDisplayStops() {
 
             const text = await response.text();
             const lines = text.trim().split(/\r?\n/);
-            // ヘッダーをきれいに掃除（目に見えない文字を削除）
             const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
 
-            console.log(`${company.name} ヘッダー解析結果:`, headers);
-
-            // 列の番号を探す（部分一致や小文字にも対応）
             const idIdx = headers.findIndex(h => h.includes('stop_id'));
             const nameIdx = headers.findIndex(h => h.includes('stop_name'));
             const latIdx = headers.findIndex(h => h.includes('stop_lat'));
             const lonIdx = headers.findIndex(h => h.includes('stop_lon'));
 
-            // 必須の列（緯度・経度）が見つからない場合はスキップ
-            if (latIdx === -1 || lonIdx === -1) {
-                console.error(`❌ ${company.name}: 緯度(stop_lat)または経度(stop_lon)の列が見つかりません。ヘッダーを確認してください。`);
-                continue;
-            }
+            if (latIdx === -1 || lonIdx === -1) continue;
 
             const markerColor = (company.id === 'hirobus') ? '#FF0000' : '#ADFF2F';
-            let successCount = 0;
 
-            lines.slice(1).forEach((line, index) => {
-                if (!line.trim()) return; // 空行は無視
+            lines.slice(1).forEach((line) => {
+                if (!line.trim()) return;
 
                 const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-                
-                // 列の数が足りない、またはデータが空の場合は無視
                 if (cols.length <= Math.max(latIdx, lonIdx)) return;
 
                 const lat = parseFloat(cols[latIdx]);
@@ -51,24 +39,19 @@ async function loadAndDisplayStops() {
                 const stopId = cols[idIdx];
                 const stopName = cols[nameIdx];
 
-                // 座標が正しい数字でない場合は無視（これが今回のエラー対策）
-                if (isNaN(lat) || isNaN(lon)) {
-                    // 最初の数件だけ警告を出す（ログが埋まらないように）
-                    if (successCount < 1) console.warn(`データ不正(行 ${index+2}):`, line);
-                    return;
-                }
+                if (isNaN(lat) || isNaN(lon)) return;
 
-                // 地図に円形マーカーを追加（当たり判定を広く設定）
+                // 当たり判定用（透明）
                 const marker = L.circleMarker([lat, lon], {
                     radius: 6,
                     fillColor: markerColor,
-                    color: 'rgba(0,0,0,0)', // 当たり判定用の透明な縁
-                    weight: 15,             // タップしやすく
-                    opacity: 0,             // 縁は見せない
-                    fillOpacity: 1          // 中身はくっきり
+                    color: 'rgba(0,0,0,0)',
+                    weight: 15,
+                    opacity: 0,
+                    fillOpacity: 1
                 }).addTo(window.map);
 
-                // 中央の小さな黒枠（見た目用）
+                // 見た目用（中央の丸）
                 L.circleMarker([lat, lon], {
                     radius: 5,
                     color: '#000',
@@ -77,7 +60,6 @@ async function loadAndDisplayStops() {
                     interactive: false
                 }).addTo(window.map);
 
-                // クリックイベント
                 marker.on('click', () => {
                     const safeId = String(stopId).replace(/\s+/g, '_');
                     const popupHtml = `
@@ -85,7 +67,8 @@ async function loadAndDisplayStops() {
                             <strong>${stopName}</strong><br>
                             <small style="color:#999;">ID: ${stopId}</small>
                             <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                            <div class="timetable-content-${safeId}">
+                            <!-- [修正] スクロールバー用のスタイルを追加 -->
+                            <div class="timetable-content-${safeId}" style="max-height: 200px; overflow-y: auto;">
                                 <div class="loading" style="font-size:11px; color:#888;">時刻表を取得中...</div>
                             </div>
                         </div>`;
@@ -96,10 +79,8 @@ async function loadAndDisplayStops() {
                         window.TimetableManager.showTimetable(stopId, company.id);
                     }
                 });
-                successCount++;
             });
-
-            console.log(`✅ ${company.name}: ${successCount} 件のバス停を描画しました。`);
+            console.log(`✅ ${company.name}: バス停描画完了`);
 
         } catch (error) {
             console.error(`${company.name} 処理エラー:`, error);
