@@ -80,43 +80,51 @@ async function updateBusPositions() {
                         .addTo(targetMap)
                         .bindPopup(finalPopupHtml, { autoClose: false });
 
-                    marker.on('click', async () => {
-                        await new Promise(r => setTimeout(r, 200));
-                        const popupDiv = document.getElementById(`popup-${vehicleId}`);
-                        if (!popupDiv) return;
-
-                        const container = popupDiv.querySelector('.trip-timetable-container');
-                        const originLabel = popupDiv.querySelector('.origin-label');
-                        const destTitle = popupDiv.querySelector('.dest-title');
-
-                        container.innerHTML = "読み込み中...";
-                        
-                        const stopsData = await window.getFullTimetableForTrip(rawTripId, company.id);
-                        
-                        if (stopsData && stopsData.length > 0) {
-                            // 【成功時】データを表示
-                            originLabel.innerHTML = `始発: ${stopsData[0].stopName}`;
-                            destTitle.innerHTML = `${stopsData[stopsData.length - 1].stopName} 行`;
-
-                            let tableHtml = `<table style="width:100%; border-collapse:collapse;">`;
-                            stopsData.forEach(s => {
-                                tableHtml += `<tr style="border-bottom:1px solid #eee;">
-                                    <td style="padding:3px 0;">${s.stopName}</td>
-                                    <td style="padding:3px 0; text-align:right;">${s.time}</td>
-                                </tr>`;
-                            });
-                            container.innerHTML = tableHtml + `</table>`;
-                        } else {
-                            // 【データなし時】ラベルを「データなし」に更新し、メッセージを表示
-                            originLabel.innerHTML = `始発: データなし`;
-                            // destTitle はそのまま（「運行中」など）にするか、必要なら変更してください
-                            container.innerHTML = `
-                                <div style="padding:10px 5px; color:#888; line-height:1.4;">
-                                    ※時刻表データがありません。<br>
-                                    <small>(臨時便または最新のダイヤに未対応の可能性があります)</small>
-                                </div>`;
-                        }
-                    });
+                marker.on('click', async () => {
+                    await new Promise(r => setTimeout(r, 200));
+                    const popupDiv = document.getElementById(`popup-${vehicleId}`);
+                    if (!popupDiv) return;
+                
+                    const container = popupDiv.querySelector('.trip-timetable-container');
+                    const originLabel = popupDiv.querySelector('.origin-label');
+                    const destTitle = popupDiv.querySelector('.dest-title');
+                
+                    container.innerHTML = "読み込み中...";
+                    
+                    // --- デバッグログ追加 ---
+                    console.log(`🚌 バスをクリックしました: 車両ID=${vehicleId}, 検索TripID=${rawTripId}`);
+                    
+                    // ここでデータを取得
+                    const stopsData = await window.getFullTimetableForTrip(rawTripId, company.id);
+                    
+                    // --- 取得結果のログ表示 ---
+                    console.log(`📊 stopsDataの結果 (${vehicleId}):`, stopsData);
+                    // -----------------------
+                
+                    if (stopsData && stopsData.length > 0) {
+                        // 成功時
+                        originLabel.innerHTML = `始発: ${stopsData[0].stopName}`;
+                        destTitle.innerHTML = `${stopsData[stopsData.length - 1].stopName} 行`;
+                
+                        let tableHtml = `<table style="width:100%; border-collapse:collapse;">`;
+                        stopsData.forEach(s => {
+                            tableHtml += `<tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:3px 0;">${s.stopName}</td>
+                                <td style="padding:3px 0; text-align:right;">${s.time}</td>
+                            </tr>`;
+                        });
+                        container.innerHTML = tableHtml + `</table>`;
+                    } else {
+                        // データがない場合
+                        console.warn(`⚠️ TripID: ${rawTripId} に該当する時刻表データが stop_times.txt に見つかりませんでした。`);
+                        originLabel.innerHTML = `始発: データなし`;
+                        container.innerHTML = `
+                            <div style="padding:10px 5px; color:#888; line-height:1.4;">
+                                ※時刻表データがありません。<br>
+                                <small>(TripID: ${rawTripId})</small>
+                            </div>`;
+                    }
+                });
 
                     busMarkers[vehicleId] = marker;
                 }
