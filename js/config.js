@@ -1,3 +1,5 @@
+window.API_BASE_URL = "https://hiroden-api.vercel.app";
+
 const BUS_COMPANIES = [
     {
         id: 'hiroden',
