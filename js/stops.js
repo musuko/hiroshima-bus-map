@@ -41,13 +41,16 @@ async function loadAndDisplayStops() {
                 if (isNaN(lat) || isNaN(lon)) return;
 
                 // 地図に円形マーカーを追加
-                const marker = L.circleMarker([lat, lon], {
-                    radius: 5,
-                    fillColor: markerColor,
-                    color: "#000",
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 0.8
+                const marker = L.circleMarker([stop.lat, stop.lon], {
+                    radius: 6,              // 見た目の半径を少しだけ大きく（6〜8くらいがおすすめ）
+                    fillColor: markerColor, // 中の色
+                    fillOpacity: 1,         // 中の色をくっきりさせる
+                    
+                    // 【ここがポイント】
+                    weight: 15,             // 透明な「縁（ふち）」の太さを15〜20に設定
+                    color: 'rgba(0,0,0,0)', // 縁の色を完全に透明にする（当たり判定だけが広がる）
+                    
+                    interactive: true       // クリックイベントを有効化
                 }).addTo(window.map);
 
                 // クリックイベント: ポップアップを表示し、時刻表を呼び出す
