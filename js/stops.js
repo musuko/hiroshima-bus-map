@@ -1,29 +1,63 @@
 /**
  * js/stops.js
- * 役割: 静的な stops.txt を読み込み、地図上にバス停マーカーを配置する
+ * 役割: バス停データを読み込み、地図に表示する
  */
 
+// 1. バス会社の定義（もし config.js などに移動している場合は削除してください）
+if (typeof BUS_COMPANIES === 'undefined') {
+    window.BUS_COMPANIES = [
+        {
+            id: 'hiroden',
+            name: '広電バス',
+            staticPath: './info/hiroden/',
+            realtimeUrl: '/api/get-all-realtime?id=8',
+            active: true
+        },
+        {
+            id: 'hirobus',
+            name: '広島バス',
+            staticPath: './info/hirobus/',
+            realtimeUrl: '/api/get-all-realtime?id=9',
+            active: true
+        }
+    ];
+}
+
 async function loadAndDisplayStops() {
-    console.log("📍 バス停の読み込みを開始します...");
+    // 地図 (window.map) が準備できるまで最大5秒待機する（初期化のラグ対策）
+    let retryCount = 0;
+    while (!window.map && retryCount < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retryCount++;
+    }
+
+    if (!window.map) {
+        console.error("❌ エラー: 地図(window.map)が初期化されませんでした。");
+        return;
+    }
+
+    console.log("📍 バス停の読み込み・描画を開始します...");
 
     for (const company of BUS_COMPANIES) {
         try {
             const response = await fetch(`${company.staticPath}stops.txt`);
-            if (!response.ok) continue;
+            if (!response.ok) {
+                console.warn(`⚠️ ${company.name} の stops.txt が見つかりません`);
+                continue;
+            }
 
             const text = await response.text();
             const lines = text.trim().split(/\r?\n/);
             const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
 
-            // 列のインデックスを取得
             const idIdx = headers.indexOf('stop_id');
             const nameIdx = headers.indexOf('stop_name');
             const latIdx = headers.indexOf('stop_lat');
             const lonIdx = headers.indexOf('stop_lon');
 
-            // 会社ごとの色設定
-            const markerColor = (company.id === 'hirobus') ? '#FF0000' : '#ADFF2F'; // 広バス: 赤 / 広電: 黄緑
+            const markerColor = (company.id === 'hirobus') ? '#FF0000' : '#ADFF2F';
 
+            let count = 0;
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
                 if (cols.length <= latIdx) continue;
@@ -38,9 +72,9 @@ async function loadAndDisplayStops() {
 
                 if (isNaN(stop.lat) || isNaN(stop.lon)) continue;
 
-                // 地図上にマーカー（円形）を作成
+                // マーカー作成
                 const marker = L.circleMarker([stop.lat, stop.lon], {
-                    radius: 6,
+                    radius: 5,
                     fillColor: markerColor,
                     color: "#000",
                     weight: 1,
@@ -48,43 +82,34 @@ async function loadAndDisplayStops() {
                     fillOpacity: 0.8
                 }).addTo(window.map);
 
-                // --- クリックイベントの設定 ---
-                marker.on('click', async () => {
-                    // 1. HTMLのID/クラス名用にスペースをアンダースコアに置換
+                // クリックイベント
+                marker.on('click', () => {
                     const safeId = String(stop.stopId).replace(/\s+/g, '_');
-                    
-                    // 2. ポップアップのHTML構成を作成
                     const popupHtml = `
                         <div style="min-width:200px; max-height:300px; overflow-y:auto;">
-                            <strong style="color:${markerColor === '#FF0000' ? '#e60012' : '#008000'}">${stop.name}</strong><br>
-                            <small style="color:#999;">停留所ID: ${stop.stopId}</small>
-                            <div style="font-size:10px; color:#ccc;">${company.name}</div>
+                            <strong>${stop.name}</strong><br>
+                            <small style="color:#999;">ID: ${stop.stopId}</small>
                             <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
                             <div class="timetable-content-${safeId}">
-                                <div class="loading" style="font-size:11px; color:#888;">時刻表を生成中...</div>
+                                <div class="loading">時刻表を取得中...</div>
                             </div>
                         </div>`;
                     
-                    // ポップアップを表示
                     marker.bindPopup(popupHtml).openPopup();
                     
-                    // 3. timetable.js の時刻表生成エンジンを呼び出す
                     if (window.TimetableManager && window.TimetableManager.showTimetable) {
-                        // 第1引数: スペース入りの元のID, 第2引数: 会社ID
                         window.TimetableManager.showTimetable(stop.stopId, stop.companyId);
-                    } else {
-                        console.error("TimetableManager が見つかりません。jsの読み込み順序を確認してください。");
                     }
                 });
+                count++;
             }
-            console.log(`✅ ${company.name} のバス停配置完了 (${lines.length - 1}件)`);
+            console.log(`✅ ${company.name} のバス停を ${count} 件描画しました`);
 
         } catch (error) {
-            console.error(`${company.name} のバス停読み込みに失敗:`, error);
+            console.error(`${company.name} の描画エラー:`, error);
         }
     }
-    console.log(`✅ すべてのバス停の色分け・配置が完了しました`);
 }
 
-// マップが初期化された後に実行するように設定（main.jsから呼ばれる想定）
-// もしmain.jsで呼んでいない場合は、ここに window.addEventListener('load', ...) を追加します
+// アプリ起動時に実行
+loadAndDisplayStops();
