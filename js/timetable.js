@@ -1,14 +1,9 @@
 /**
  * js/timetable.js
- * 役割: バス停クリック時に、Vercel APIを利用して「今日の」時刻表を表示する
  */
 
 window.TimetableManager = {
-    /**
-     * メイン関数: バス停マーカーのクリック時に呼ばれる
-     */
     async showTimetable(stopId, companyId) {
-        // HTMLのクラス名用にスペースをアンダースコアに変換
         const safeId = String(stopId).replace(/\s+/g, '_');
         const containerSelector = `.timetable-content-${safeId}`;
         
@@ -21,20 +16,17 @@ window.TimetableManager = {
         }
 
         try {
-            // 1. 今日有効な service_id を判定 (calendar.txt, calendar_dates.txt を使用)
             const activeServiceIds = await this._getTodayServiceIds(company);
             if (activeServiceIds.length === 0) {
                 this._renderNoData(safeId, "本日のサービス設定が見つかりません");
                 return;
             }
 
-            // 2. trips.txt を読み込み、今日運行している trip_id のセットを作る
             const validTripIds = await this._getValidTripIds(company, activeServiceIds);
 
-            // 3. Vercel API を叩いて、このバス停の通過時刻を高速抽出
+            // [修正ポイント] API_BASE_URL を使用してVercelを叩く
             const times = await this._getStopTimes(company, stopId, validTripIds);
 
-            // 4. 結果を画面（ポップアップ内）に描画
             this._renderTimetable(safeId, company.name, times);
 
         } catch (e) {
@@ -44,36 +36,36 @@ window.TimetableManager = {
     },
 
     /**
-     * Vercel API から、特定のバス停の行だけを取得する
+     * Vercel API から特定のバス停の行を取得
      */
     async _getStopTimes(company, stopId, validTripIds) {
         const safeStopId = encodeURIComponent(stopId);
-        // --- 修正後：VercelのURLを直接指定する ---
-        const apiUrl = `https://hiroden-api.vercel.app/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+        
+        // [ここを修正] config.js の API_BASE_URL を使用する
+        const apiUrl = `${API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+        
+        console.log(`📡 Fetching from: ${apiUrl}`); // デバッグ用
+
         try {
             const res = await fetch(apiUrl);
-            if (!res.ok) throw new Error("APIレスポンスエラー");
+            if (!res.ok) throw new Error(`APIレスポンスエラー: ${res.status}`);
             
             const lines = await res.json(); 
             const results = [];
 
             lines.forEach(line => {
                 const cols = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                
-                // GTFS標準順序: 0:trip_id, 1:arrival_time
                 const tripId = cols[0];
                 const arrivalTime = cols[1];
 
-                // trips.txtで確認した「今日運行する便」のみを採用
                 if (validTripIds.has(tripId)) {
                     results.push({
-                        time: arrivalTime.substring(0, 5), // "HH:MM:SS" -> "HH:MM"
+                        time: arrivalTime.substring(0, 5),
                         headsign: "運行便" 
                     });
                 }
             });
 
-            // 時刻順に並び替え
             return results.sort((a, b) => a.time.localeCompare(b.time));
         } catch (err) {
             console.error("API fetch error:", err);
@@ -81,9 +73,6 @@ window.TimetableManager = {
         }
     },
 
-    /**
-     * 曜日と日付から今日有効な service_id のリストを取得
-     */
     async _getTodayServiceIds(company) {
         const now = new Date();
         const y = now.getFullYear();
@@ -91,10 +80,8 @@ window.TimetableManager = {
         const d = String(now.getDate()).padStart(2, '0');
         const todayStr = `${y}${m}${d}`;
 
-        // 基本の曜日ID
         let serviceIds = await this._getIdsByWeekday(company, now);
 
-        // 例外(祝日など)の適用
         try {
             const res = await fetch(`${company.staticPath}calendar_dates.txt`);
             if (res.ok) {
@@ -115,8 +102,7 @@ window.TimetableManager = {
                 }
                 serviceIds = Array.from(idSet);
             }
-        } catch (err) { /* 無視 */ }
-
+        } catch (err) { }
         return serviceIds;
     },
 
@@ -128,10 +114,8 @@ window.TimetableManager = {
             const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
             const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
             const todayCol = dayNames[dateObj.getDay()];
-            
             const sIdx = head.indexOf('service_id');
             const dIdx = head.indexOf(todayCol);
-            
             const ids = [];
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
@@ -184,5 +168,3 @@ window.TimetableManager = {
         if (container) container.innerHTML = `<p>${msg}</p>`;
     }
 };
-
-console.log("✅ timetable.js (全コード更新完了)");
