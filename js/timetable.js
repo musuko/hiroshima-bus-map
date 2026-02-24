@@ -1,232 +1,189 @@
-// js/timetable.js
-
 /**
- * バス停クリック時に呼び出される統合関数
+ * js/timetable.js
+ * 
+ * 役割: バス停クリック時に、今日の運行スケジュールを抽出して表示する
+ * 変更点: 巨大な stop_times.txt の読み込みを廃止し、Vercel API 経由で取得する
  */
-async function showUnifiedTimetable(rawStopId, stopName) {
-    // 1. GTFS検索用のID (スペースを維持: "71220 1")
-    const stopIdForSearch = String(rawStopId);
-    
-    // 2. セレクタ用のID (スペースをアンダースコアに置換: "71220_1")
-    // HTML(stops.js)側のクラス名と一致させる
-    const stopIdForSelector = stopIdForSearch.replace(/\s+/g, '_');
-    
-    console.log(`🚏 統合表示開始: ID="${stopIdForSearch}", Selector=".timetable-content-${stopIdForSelector}"`);
-    
-    // ポップアップがDOMに配置されるのを待つ
-    await new Promise(r => setTimeout(r, 150));
-    
-    const container = document.querySelector(`.timetable-content-${stopIdForSelector}`);
-    if (!container) {
-        console.error(`❌ 表示コンテナが見つかりません: .timetable-content-${stopIdForSelector}`);
-        return;
-    }
 
-    // 祝日・曜日ラベルの取得（CalendarManagerがある前提）
-    let dayInfo = { label: '本日', color: '#666' };
-    if (window.CalendarManager && typeof window.CalendarManager.getDayLabel === 'function') {
-        dayInfo = window.CalendarManager.getDayLabel();
-    }
-
-    container.innerHTML = `
-        <div style="color:${dayInfo.color}; font-weight:bold; margin-bottom:10px; font-size:12px;">
-            📅 運行区分: ${dayInfo.label}
-        </div>
-        <div class="loading" style="font-size:11px; color:#999;">時刻表を生成中...</div>
-    `;
-
-    try {
-        let allTimes = [];
-
-        // 全ての有効な会社から時刻を収集
-        for (const company of BUS_COMPANIES) {
-            if (!company.active) continue;
-
-            // 1. 今日有効な service_id を取得 (calendar_dates.txt対応)
-            const activeServiceIds = await getServiceIdsForToday(company);
-            if (activeServiceIds.length === 0) continue;
-
-            // 2. trips.txt から有効な trip_id を抽出
-            const validTripIds = await getValidTripIds(company, activeServiceIds);
-            if (validTripIds.size === 0) continue;
-
-            // 3. stop_times.txt から時刻を抽出 (スペース入りのIDで検索)
-            const companyTimes = await fetchStopTimes(company, stopIdForSearch, validTripIds);
-            
-            // 会社情報を付与して合流
-            companyTimes.forEach(t => {
-                t.companyName = company.name;
-                allTimes.push(t);
-            });
-        }
-
-        // 4. 全社の時刻を混ぜて時間順にソート
-        allTimes.sort((a, b) => a.time.localeCompare(b.time));
-
-        // 5. 表示反映
-        renderUnifiedTable(container, allTimes);
-
-    } catch (e) {
-        console.error("❌ 時刻表エラー:", e);
-        container.innerHTML = "<p style='font-size:11px; color:red;'>時刻表の読み込み中にエラーが発生しました。</p>";
-    }
-}
-
-/**
- * calendar.txt と calendar_dates.txt を組み合わせて今日の有効なIDを返す
- */
-async function getServiceIdsForToday(company) {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${y}${m}${d}`;
-
-    let serviceIds = [];
-    
-    // A. 曜日による基本判定
-    try {
-        const res = await fetch(`${company.staticPath}calendar.txt`);
-        const text = await res.text();
-        const lines = text.trim().split(/\r?\n/);
-        const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const todayCol = dayNames[now.getDay()];
+window.TimetableManager = {
+    /**
+     * バス停クリック時のメインエントリーポイント
+     */
+    async showTimetable(stopId, companyId) {
+        // セレクター作成（IDにスペースがある場合はアンダースコアに置換）
+        const safeIdForSelector = stopId.replace(/\s+/g, '_');
+        const containerSelector = `.timetable-content-${safeIdForSelector}`;
         
-        const sIdx = head.indexOf('service_id');
-        const dIdx = head.indexOf(todayCol);
+        console.log(`🚏 時刻表取得開始: ID=${stopId}, Company=${companyId}`);
+        
+        const company = BUS_COMPANIES.find(c => c.id === companyId);
+        if (!company) return;
 
-        for (let i = 1; i < lines.length; i++) {
-            const c = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-            if (c[dIdx] === '1') serviceIds.push(c[sIdx]);
+        try {
+            // 1. 今日有効な service_id を取得 (calendar.txt, calendar_dates.txt を使用)
+            // ※これは trips.txt をフィルタリングするために必要
+            const activeServiceIds = await this._getTodayServiceIds(company);
+            if (activeServiceIds.length === 0) {
+                this._renderNoData(stopId, "本日のサービス設定が見つかりません");
+                return;
+            }
+
+            // 2. trips.txt から、今日運行している trip_id のリストを作る
+            const validTripIds = await this._getValidTripIds(company, activeServiceIds);
+
+            // 3. Vercel API を叩いて、このバス停の時刻データだけを取得する
+            const times = await this._getStopTimes(company, stopId, validTripIds);
+
+            // 4. 画面に表示
+            this._renderTimetable(stopId, company.name, times);
+
+        } catch (e) {
+            console.error("時刻表生成エラー:", e);
+            this._renderNoData(stopId, "データの読み込みに失敗しました");
         }
-    } catch (e) {
-        console.warn(`${company.id}: calendar.txt 読み込みスキップ`);
-    }
+    },
 
-    // B. 日付例外による上書き (calendar_dates.txt)
-    try {
-        const res = await fetch(`${company.staticPath}calendar_dates.txt`);
-        if (res.ok) {
+    /**
+     * [修正点] Vercel API を使用して、特定のバス停のデータだけを取得する
+     */
+    async _getStopTimes(company, stopId, validTripIds) {
+        // スペースを含むIDを安全にURLに含める
+        const safeStopId = encodeURIComponent(stopId);
+        const apiUrl = `/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+        
+        try {
+            const res = await fetch(apiUrl);
+            if (!res.ok) throw new Error("APIレスポンスエラー");
+            
+            const lines = await res.json(); // Vercelから抽出された行が届く
+            const results = [];
+
+            lines.forEach(line => {
+                const cols = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                
+                // GTFSの列順序: 0:trip_id, 1:arrival_time, 2:departure_time, 3:stop_id
+                const tripId = cols[0];
+                const arrivalTime = cols[1];
+
+                // 今日の運行便(validTripIds)に含まれている場合のみ採用
+                if (validTripIds.has(tripId)) {
+                    results.push({
+                        time: arrivalTime.substring(0, 5), // "10:30:00" -> "10:30"
+                        headsign: "運行便" // 必要に応じて route_id などから取得可能
+                    });
+                }
+            });
+
+            // 時刻順にソート
+            return results.sort((a, b) => a.time.localeCompare(b.time));
+        } catch (err) {
+            console.error("API fetch error:", err);
+            return [];
+        }
+    },
+
+    /**
+     * 今日有効な service_id を判定 (これは静的な calendar.txt を使う)
+     */
+    async _getTodayServiceIds(company) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}${m}${d}`;
+
+        let serviceIds = await this._getIdsByWeekday(company, now);
+
+        try {
+            const res = await fetch(`${company.staticPath}calendar_dates.txt`);
+            if (res.ok) {
+                const text = await res.text();
+                const lines = text.trim().split(/\r?\n/);
+                const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                const sIdx = head.indexOf('service_id');
+                const dIdx = head.indexOf('date');
+                const eIdx = head.indexOf('exception_type');
+
+                const idSet = new Set(serviceIds);
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                    if (cols[dIdx] === todayStr) {
+                        if (cols[eIdx] === '1') idSet.add(cols[sIdx]);
+                        else if (cols[eIdx] === '2') idSet.delete(cols[sIdx]);
+                    }
+                }
+                serviceIds = Array.from(idSet);
+            }
+        } catch (err) { console.warn("例外カレンダーなし"); }
+
+        return serviceIds;
+    },
+
+    async _getIdsByWeekday(company, dateObj) {
+        try {
+            const res = await fetch(`${company.staticPath}calendar.txt`);
             const text = await res.text();
             const lines = text.trim().split(/\r?\n/);
             const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const todayCol = dayNames[dateObj.getDay()];
             
             const sIdx = head.indexOf('service_id');
-            const dIdx = head.indexOf('date');
-            const eIdx = head.indexOf('exception_type');
-
-            const idSet = new Set(serviceIds);
+            const dIdx = head.indexOf(todayCol);
+            
+            const ids = [];
             for (let i = 1; i < lines.length; i++) {
-                const c = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                if (c[dIdx] === todayStr) {
-                    if (c[eIdx] === '1') idSet.add(c[sIdx]); // 追加
-                    else if (c[eIdx] === '2') idSet.delete(c[sIdx]); // 削除
-                }
+                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (cols[dIdx] === '1') ids.push(cols[sIdx]);
             }
-            serviceIds = Array.from(idSet);
-        }
-    } catch (e) {
-        // calendar_dates.txt がない場合は曜日判定のみで進む
-    }
+            return ids;
+        } catch (e) { return []; }
+    },
 
-    return serviceIds;
-}
-
-/**
- * 有効な service_id を持つ trip_id を抽出
- */
-async function getValidTripIds(company, activeServiceIds) {
-    try {
+    async _getValidTripIds(company, activeServiceIds) {
         const res = await fetch(`${company.staticPath}trips.txt`);
         const text = await res.text();
         const lines = text.trim().split(/\r?\n/);
         const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-        
         const sIdx = head.indexOf('service_id');
         const tIdx = head.indexOf('trip_id');
-        
-        const activeSet = new Set(activeServiceIds);
-        const validTrips = new Set();
 
+        const validTrips = new Set();
+        const activeSet = new Set(activeServiceIds);
         for (let i = 1; i < lines.length; i++) {
-            const c = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-            if (activeSet.has(c[sIdx])) {
-                validTrips.add(c[tIdx]);
-            }
+            const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            if (activeSet.has(cols[sIdx])) validTrips.add(cols[tIdx]);
         }
         return validTrips;
-    } catch (e) {
-        return new Set();
-    }
-}
+    },
 
-/**
- * stop_times.txt から、特定のバス停かつ有効な便の時刻を抽出
- */
-async function fetchStopTimes(company, stopId, validTripIds) {
-    try {
-        const res = await fetch(`${company.staticPath}stop_times.txt`);
-        const text = await res.text();
-        const lines = text.trim().split(/\r?\n/);
-        const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-        
-        const tIdx = head.indexOf('trip_id');
-        const sIdx = head.indexOf('stop_id');
-        const aIdx = head.indexOf('arrival_time');
-        const hIdx = head.indexOf('stop_headsign');
+    _renderTimetable(stopId, companyName, times) {
+        const safeId = stopId.replace(/\s+/g, '_');
+        const container = document.querySelector(`.timetable-content-${safeId}`);
+        if (!container) return;
 
-        const results = [];
-        for (let i = 1; i < lines.length; i++) {
-            // 文字列照合による簡易フィルタリング（高速化）
-            if (lines[i].includes(stopId)) {
-                const c = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                // 厳密なID一致と、今日の有効な便かチェック
-                if (c[sIdx] === stopId && validTripIds.has(c[tIdx])) {
-                    results.push({
-                        time: c[aIdx].trim().substring(0, 5),
-                        headsign: c[hIdx] ? c[hIdx].replace(/^"|"$/g, '') : "運行便"
-                    });
-                }
-            }
+        if (times.length === 0) {
+            container.innerHTML = "<p>本日の運行予定はありません。</p>";
+            return;
         }
-        return results;
-    } catch (e) {
-        return [];
+
+        let html = `<div style="font-weight:bold; margin-bottom:5px; border-bottom:2px solid #333;">${companyName}</div>`;
+        html += `<table style="width:100%; font-size:12px;">`;
+        times.forEach(t => {
+            html += `<tr style="border-bottom:1px solid #eee;">
+                <td style="padding:4px 0; font-weight:bold;">${t.time}</td>
+                <td style="padding:4px 0; text-align:right; color:#666;">${t.headsign}</td>
+            </tr>`;
+        });
+        html += `</table>`;
+        container.innerHTML = html;
+    },
+
+    _renderNoData(stopId, msg) {
+        const safeId = stopId.replace(/\s+/g, '_');
+        const container = document.querySelector(`.timetable-content-${safeId}`);
+        if (container) container.innerHTML = `<p>${msg}</p>`;
     }
-}
+};
 
-/**
- * 最終的な時刻表をテーブル形式で描画
- */
-function renderUnifiedTable(container, times) {
-    if (times.length === 0) {
-        container.innerHTML = "<p style='font-size:11px; color:#666;'>本日の運行予定はありません。</p>";
-        return;
-    }
-
-    let html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">`;
-    times.forEach(t => {
-        // 広電と広バスで色分け
-        const isHiroden = t.companyName.includes("広電");
-        const badgeColor = isHiroden ? "#8bc34a" : "#f44336";
-        const shortName = isHiroden ? "広電" : "広バス";
-
-        html += `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:8px 0; font-weight:bold; font-size:1.2em; width:55px;">${t.time}</td>
-            <td style="padding:8px 0;">
-                <span style="font-size:0.75em; color:white; background:${badgeColor}; padding:1px 4px; border-radius:3px; margin-right:5px; vertical-align:middle;">
-                    ${shortName}
-                </span>
-                <span style="vertical-align:middle;">${t.headsign}</span>
-            </td>
-        </tr>`;
-    });
-    html += `</table>`;
-    container.innerHTML = html;
-}
-
-// グローバルスコープに公開して stops.js から呼べるようにする
-window.showUnifiedTimetable = showUnifiedTimetable;
-
-console.log("✅ timetable.js (完全版: 祝日・特殊ID・スペース置換対応) ロード完了");
+console.log("✅ timetable.js (Vercel API抽出版) ロード完了");
