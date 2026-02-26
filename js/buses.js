@@ -29,7 +29,8 @@ function createSquareIcon(companyId) {
 async function updateBusPositions() {
     if (!window.map) return; 
 
-    const activeCompanies = BUS_COMPANIES.filter(c => c.active);
+    // active（データ取得対象）かつ visible（表示ON）の会社のみ処理する
+    const activeCompanies = BUS_COMPANIES.filter(c => c.active && c.visible !== false);
     const targetMap = window.map;
     const activeIds = new Set();
 
