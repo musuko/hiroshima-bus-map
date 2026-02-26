@@ -61,7 +61,7 @@ window.BUS_COMPANIES =[
         id: 'bonbus',
         name: 'ボンバス',
         staticPath: './info/bonbus/',
-        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=13,
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=13`,
         active: true,
         visible: true   // ★追加
     }
