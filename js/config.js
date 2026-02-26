@@ -34,6 +34,7 @@ window.APP_CONFIG = {
     COMPANIES: {
         hiroden: { color: '#ADFF2F', textColor: '#008000' },
         hirobus: { color: '#FF0000', textColor: '#e60012' },
+        bonbus: { color: '#2e8b57', textColor: '#228b22' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
 };
@@ -52,6 +53,14 @@ window.BUS_COMPANIES =[
         id: 'hirobus',
         name: '広島バス',
         staticPath: './info/hirobus/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
+        active: true,
+        visible: true   // ★追加
+    }
+        {
+        id: 'bonbus',
+        name: 'ボンバス',
+        staticPath: './info/bonbus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
         active: true,
         visible: true   // ★追加
