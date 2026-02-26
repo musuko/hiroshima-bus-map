@@ -1,5 +1,5 @@
 /**
- * スマホの回転方向と位置を物理法則に合わせる
+ * スマホの回転方向と位置を物理法則に合わせる。
  */
 function syncHeaderWithOrientation() {
     const body = document.body;
