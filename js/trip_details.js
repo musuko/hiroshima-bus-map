@@ -33,7 +33,7 @@ async function getFullTimetableForTrip(tripId, companyId) {
                     const sId = cols[sIdx];
                     tripStops.push({
                         stopId: sId,
-                        stopName: window.stopLookup[sId]?.name || `停留所(${sId})`,
+                        stopName: window.globalStopMap.get(sId)?.name || `停留所(${sId})`,
                         time: cols[aIdx] ? cols[aIdx].substring(0, 5) : "--:--",
                         sequence: parseInt(cols[sqIdx])
                     });
