@@ -3,7 +3,7 @@
 async function getFullTimetableForTrip(tripId, companyId) {
     // console.log はデバッグ用に残しても良いですが、warn は消します
     if (!tripId) return [];
-    
+
     const company = BUS_COMPANIES.find(c => c.id === companyId);
     if (!company) return [];
 
