@@ -55,7 +55,7 @@ window.BUS_COMPANIES =[
         id: 'hirobus',
         name: '広島バス',
         staticPath: './info/hirobus/',
-        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=10`,
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
         active: true,
         visible: true   // ★追加
     },
@@ -63,7 +63,7 @@ window.BUS_COMPANIES =[
         id: 'hiroko',
         name: '広島交通',
         staticPath: './info/hiroko/',
-        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=10`,
         active: true,
         visible: true   // ★追加
     },
