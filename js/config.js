@@ -34,6 +34,8 @@ window.APP_CONFIG = {
     COMPANIES: {
         hiroden: { color: '#ADFF2F', textColor: '#008000' },
         hirobus: { color: '#FF0000', textColor: '#e60012' },
+        hiroko: { color: '#eb9b6f', textColor: '#eb9b6f' },
+        geiyo: { color: '#33ccff', textColor: '#33ccff' },
         bonbus: { color: '#2e8b57', textColor: '#228b22' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
@@ -53,7 +55,23 @@ window.BUS_COMPANIES =[
         id: 'hirobus',
         name: '広島バス',
         staticPath: './info/hirobus/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=10`,
+        active: true,
+        visible: true   // ★追加
+    },
+        {
+        id: 'hiroko',
+        name: '広島交通',
+        staticPath: './info/hiroko/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'geiyo',
+        name: '芸陽バス',
+        staticPath: './info/geiyo/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=11`,
         active: true,
         visible: true   // ★追加
     },
