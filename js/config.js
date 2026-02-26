@@ -28,20 +28,22 @@ window.APP_CONFIG = {
 };
 
 // 3. 会社情報の定義
-window.BUS_COMPANIES = [
+window.BUS_COMPANIES =[
     {
         id: 'hiroden',
         name: '広電バス',
         staticPath: './info/hiroden/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=8`,
-        active: true
+        active: true,   // 起動時にデータを読み込むか
+        visible: true   // 地図上に表示するか（チェックボックスと連動）★追加
     },
     {
         id: 'hirobus',
         name: '広島バス',
         staticPath: './info/hirobus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
-        active: true
+        active: true,
+        visible: true   // ★追加
     }
 ];
 
