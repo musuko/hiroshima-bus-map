@@ -167,13 +167,6 @@ function setupCompanyFilter() {
             window.updateBusPositions();
         }
     });
-
-        localStorage.setItem('busVisibleConfig', JSON.stringify(saveObj));
-
-        // ★未ロードの会社があれば、ここで動的にデータを取得する（遅延読み込み）
-        if (companiesToLoad.length > 0) {
-            console.log("📥 新たに選択された会社のデータを読み込みます...");
-            const promises =
 }
 
 // 起動シーケンス
