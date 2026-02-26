@@ -12,7 +12,7 @@ window.APP_CONFIG = {
     MAP: {
         STOP_RADIUS: 6,         // バス停の見た目の半径
         STOP_WEIGHT: 15,        // バス停の当たり判定の太さ
-        BUS_ICON_SIZE: 20       // バスアイコンのサイズ
+        BUS_ICON_SIZE: 20,       // バスアイコンのサイズ
                 
         // ★追加：デザイナーが自由にいじれるアイコンのHTMLひな形
         // {color} の部分が自動的に会社の色に置き換わります
