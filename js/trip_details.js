@@ -25,16 +25,17 @@ async function getFullTimetableForTrip(tripId, companyId) {
         
         // ヘッダー（1行目）の解析
         // ※分割された2つ目以降のファイルにもヘッダーが付いている場合を考慮
-        if (isFirstFile || lines[0].includes('trip_id')) {
+        const firstLine = lines[0].toLowerCase();
+        if (isFirstFile || firstLine.includes('trip_id')) {
             const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
             tIdx = head.indexOf('trip_id');
             sIdx = head.indexOf('stop_id');
             aIdx = head.indexOf('arrival_time');
             sqIdx = head.indexOf('stop_sequence');
-            startIndex = 1;
+            startIndex = 1; // ヘッダー行をスキップ
         }
 
-        // ヘッダーが見つからなければ処理しない
+        // ヘッダーが見つからなければ処理しない（異常なファイル）
         if (tIdx === -1) return;
 
         for (let i = startIndex; i < lines.length; i++) {
@@ -46,7 +47,7 @@ async function getFullTimetableForTrip(tripId, companyId) {
                     tripStops.push({
                         stopId: sId,
                         // ★前回の修正（名前を正しく表示する）
-                        stopName: window.globalStopMap.get(sId)?.name || `停留所(${sId})`,
+                        stopName: window.globalStopMap?.get(sId)?.name || `停留所(${sId})`,
                         time: cols[aIdx] ? cols[aIdx].substring(0, 5) : "--:--",
                         sequence: parseInt(cols[sqIdx])
                     });
@@ -63,7 +64,7 @@ async function getFullTimetableForTrip(tripId, companyId) {
             const text = await res.text();
             processText(text, true);
         } else {
-            // 【パターン2】404エラーの場合、分割ファイル(stop_times_1.txt...)を順番に探す
+            // 【パターン2】404エラーの場合、分割ファイル(stop_times_1.txt, stop_times_2.txt...)を順番に探す
             let fileIndex = 1;
             while (true) {
                 const splitRes = await fetch(`${company.staticPath}stop_times_${fileIndex}.txt`);
@@ -85,5 +86,6 @@ async function getFullTimetableForTrip(tripId, companyId) {
         return tripStops.sort((a, b) => a.sequence - b.sequence);
 
     } catch (e) {
+        // 通信エラーなどの場合
         console.error("fetch error:", e);
         return
