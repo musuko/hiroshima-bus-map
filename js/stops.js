@@ -4,102 +4,100 @@
  */
 
 // 後から表示切替できるように、バス停データをグローバルに保存する箱
-window.globalStopMap = new Map();
+window.globalStopMap = window.globalStopMap || new Map();
 
-async function loadAndDisplayStops() {
+// ★1つの会社のバス停データだけを読み込む関数
+window.loadCompanyStops = async function(company) {
+    if (company.isStopsLoaded) return; // 既にロード済みならスキップ
+
+    console.log(`📍 ${company.name} のバス停データを読み込み中...`);
+    try {
+        const response = await fetch(`${company.staticPath}stops.txt`);
+        if (!response.ok) return;
+
+        const text = await response.text();
+        const lines = text.trim().split(/\r?\n/);
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+
+        const idIdx = headers.findIndex(h => h.includes('stop_id'));
+        const nameIdx = headers.findIndex(h => h.includes('stop_name'));
+        const latIdx = headers.findIndex(h => h.includes('stop_lat'));
+        const lonIdx = headers.findIndex(h => h.includes('stop_lon'));
+
+        lines.slice(1).forEach((line) => {
+            if (!line.trim()) return;
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            if (cols.length <= Math.max(latIdx, lonIdx)) return;
+
+            const stopId = cols[idIdx];
+            const lat = parseFloat(cols[latIdx]);
+            const lon = parseFloat(cols[lonIdx]);
+            const stopName = cols[nameIdx];
+
+            if (isNaN(lat) || isNaN(lon)) return;
+
+            if (window.globalStopMap.has(stopId)) {
+                const entry = window.globalStopMap.get(stopId);
+                if (!entry.companies.includes(company.id)) {
+                    entry.companies.push(company.id);
+                }
+            } else {
+                const marker = L.circleMarker([lat, lon], {
+                    radius: 6, color: 'rgba(0,0,0,0)', weight: 15, opacity: 0, fillOpacity: 1
+                });
+
+                const centerMarker = L.circleMarker([lat, lon], {
+                    radius: 5, color: '#000', weight: 1, fill: false, interactive: false
+                });
+
+                const entry = {
+                    marker: marker, centerMarker: centerMarker, companies: [company.id], name: stopName
+                };
+
+                marker.on('click', () => {
+                    const safeId = String(stopId).replace(/\s+/g, '_');
+                    const popupHtml = `
+                        <div style="min-width:220px;">
+                            <strong>${entry.name}</strong><br>
+                            <small style="color:#999;">ID: ${stopId}</small>
+                            <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                            <div class="timetable-content-${safeId}" style="max-height: 250px; overflow-y: auto;">
+                                <div class="loading">時刻表を準備中...</div>
+                            </div>
+                        </div>`;
+                    marker.bindPopup(popupHtml).openPopup();
+                    
+                    const visibleCompanies = entry.companies.filter(cid => {
+                        const c = window.BUS_COMPANIES.find(comp => comp.id === cid);
+                        return c && c.visible !== false;
+                    });
+                    if (window.TimetableManager) {
+                        window.TimetableManager.showTimetable(stopId, visibleCompanies);
+                    }
+                });
+
+                window.globalStopMap.set(stopId, entry);
+            }
+        });
+    } catch (e) { console.error(e); }
+
+    company.isStopsLoaded = true; // 読み込み完了フラグを立てる
+};
+
+// ★起動時に呼び出される関数（表示ONの会社だけをロードする）
+window.loadAndDisplayStops = async function() {
     if (!window.map) {
-        setTimeout(loadAndDisplayStops, 500);
+        setTimeout(window.loadAndDisplayStops, 500);
         return;
     }
 
-    console.log("📍 バス停の統合・描画を開始します...");
-
-    for (const company of BUS_COMPANIES) {
-        try {
-            const response = await fetch(`${company.staticPath}stops.txt`);
-            if (!response.ok) continue;
-
-            const text = await response.text();
-            const lines = text.trim().split(/\r?\n/);
-            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-
-            const idIdx = headers.findIndex(h => h.includes('stop_id'));
-            const nameIdx = headers.findIndex(h => h.includes('stop_name'));
-            const latIdx = headers.findIndex(h => h.includes('stop_lat'));
-            const lonIdx = headers.findIndex(h => h.includes('stop_lon'));
-
-            lines.slice(1).forEach((line) => {
-                if (!line.trim()) return;
-                const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-                if (cols.length <= Math.max(latIdx, lonIdx)) return;
-
-                const stopId = cols[idIdx];
-                const lat = parseFloat(cols[latIdx]);
-                const lon = parseFloat(cols[lonIdx]);
-                const stopName = cols[nameIdx];
-
-                if (isNaN(lat) || isNaN(lon)) return;
-
-                if (window.globalStopMap.has(stopId)) {
-                    // すでに登録されているバス停（共通バス停）
-                    const entry = window.globalStopMap.get(stopId);
-                    if (!entry.companies.includes(company.id)) {
-                        entry.companies.push(company.id);
-                    }
-                } else {
-                    // 新規バス停作成 (ここではまだ地図に追加しない)
-                    const marker = L.circleMarker([lat, lon], {
-                        radius: 6,
-                        color: 'rgba(0,0,0,0)',
-                        weight: 15,
-                        opacity: 0,
-                        fillOpacity: 1
-                    });
-
-                    // 見た目用（中央の丸）
-                    const centerMarker = L.circleMarker([lat, lon], {
-                        radius: 5, color: '#000', weight: 1, fill: false, interactive: false
-                    });
-
-                    const entry = {
-                        marker: marker,
-                        centerMarker: centerMarker,
-                        companies:[company.id],
-                        name: stopName
-                    };
-
-                    // クリックイベント
-                    marker.on('click', () => {
-                        const safeId = String(stopId).replace(/\s+/g, '_');
-                        const popupHtml = `
-                            <div style="min-width:220px;">
-                                <strong>${entry.name}</strong><br>
-                                <small style="color:#999;">ID: ${stopId}</small>
-                                <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
-                                <div class="timetable-content-${safeId}" style="max-height: 250px; overflow-y: auto;">
-                                    <div class="loading">時刻表を準備中...</div>
-                                </div>
-                            </div>`;
-                        marker.bindPopup(popupHtml).openPopup();
-                        
-                        // 現在チェックが入っている会社のみを時刻表に渡す
-                        const visibleCompanies = entry.companies.filter(cid => {
-                            const c = window.BUS_COMPANIES.find(comp => comp.id === cid);
-                            return c && c.visible !== false;
-                        });
-                        window.TimetableManager.showTimetable(stopId, visibleCompanies);
-                    });
-
-                    window.globalStopMap.set(stopId, entry);
-                }
-            });
-        } catch (e) { console.error(e); }
-    }
-    console.log(`✅ バス停データの読み込みが完了しました。総バス停数: ${window.globalStopMap.size}`);
+    const promises = window.BUS_COMPANIES
+        .filter(c => c.active && c.visible !== false) // 表示ONの会社のみ
+        .map(c => window.loadCompanyStops(c));
     
-    // データ読み込みが終わったら、設定に基づき地図に表示する
+    await Promise.all(promises);
     window.updateStopsDisplay();
-}
+};
 
 /**
  * 会社選択のチェック状態に応じて、バス停の表示・非表示・色を即座に更新する関数
