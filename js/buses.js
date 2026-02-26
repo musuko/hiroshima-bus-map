@@ -5,24 +5,24 @@ const busMarkers = {};
 /**
  * 会社ごとの色と枠線を持った四角形アイコンを生成する
  */
-function createSquareIcon(companyId) {
-    const isHirobus = (companyId === 'hirobus');
-    const bgColor = isHirobus ? '#FF0000' : '#ADFF2F'; // 広島バス: 赤, 広電: 黄緑
-    const borderColor = '#000000'; 
+function createBusIcon(companyId) {
+    // 1. 会社の色を取得（設定がなければグレー）
+    const companyConfig = window.APP_CONFIG.COMPANIES[companyId];
+    const bgColor = companyConfig ? companyConfig.color : '#888888';
+
+    // 2. config.js からHTMLのひな形を取得し、{color} を実際の色に置き換える
+    const rawHtml = window.APP_CONFIG.MAP.BUS_ICON_HTML || `<div style="background-color:{color}; width:16px; height:16px;"></div>`;
+    const iconHtml = rawHtml.replace(/{color}/g, bgColor);
+
+    // 3. アイコンのサイズも config.js から取得
+    const size = window.APP_CONFIG.MAP.BUS_ICON_SIZE || 20;
 
     return L.divIcon({
         className: 'custom-bus-icon',
-        html: `<div style="
-            width: 16px; 
-            height: 16px; 
-            background-color: ${bgColor}; 
-            border: 2px solid ${borderColor};
-            border-radius: 2px;
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
-        "></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-        popupAnchor: [0, -10]
+        html: iconHtml,
+        iconSize:[size, size],
+        iconAnchor: [size / 2, size / 2], // サイズの半分を指定して中心を合わせる
+        popupAnchor: [0, -(size / 2)]     // ポップアップがアイコンの上に被らないようにする
     });
 }
 
