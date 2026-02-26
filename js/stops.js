@@ -3,12 +3,10 @@
  * 役割: バス停の統合管理と地図描画
  */
 
-// 後から表示切替できるように、バス停データをグローバルに保存する箱
 window.globalStopMap = window.globalStopMap || new Map();
 
-// ★1つの会社のバス停データだけを読み込む関数
 window.loadCompanyStops = async function(company) {
-    if (company.isStopsLoaded) return; // 既にロード済みならスキップ
+    if (company.isStopsLoaded) return;
 
     console.log(`📍 ${company.name} のバス停データを読み込み中...`);
     try {
@@ -27,14 +25,14 @@ window.loadCompanyStops = async function(company) {
         lines.slice(1).forEach((line) => {
             if (!line.trim()) return;
 
-            // ★犯人1対策：ダブルクォーテーション内のカンマで区切られないようにする安全な分割処理
+            // 犯人1対策：安全な分割処理
             const cols =[];
             let inQuotes = false;
             let current = '';
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
                 if (char === '"') {
-                    inQuotes = !inQuotes; // クォーテーションのオン・オフを切り替え
+                    inQuotes = !inQuotes;
                 } else if (char === ',' && !inQuotes) {
                     cols.push(current.trim().replace(/^"|"$/g, ''));
                     current = '';
@@ -46,15 +44,48 @@ window.loadCompanyStops = async function(company) {
 
             if (cols.length <= Math.max(latIdx, lonIdx)) return;
 
-            const stopId = cols[idIdx]; // 「70030 1」のようなスペース入りIDも正確に取得されます
+            const originalStopId = cols[idIdx]; // 実際のID (例: "71230 1")
             const lat = parseFloat(cols[latIdx]);
             const lon = parseFloat(cols[lonIdx]);
             const stopName = cols[nameIdx];
 
             if (isNaN(lat) || isNaN(lon)) return;
 
-            if (window.globalStopMap.has(stopId)) {
-                const entry = window.globalStopMap.get(stopId);
+            // ★今回の解決策：同じIDでも座標が離れていたら別の「内部キー」を作る
+            let mapKey = originalStopId;
+
+            if (window.globalStopMap.has(mapKey)) {
+                let existing = window.globalStopMap.get(mapKey);
+                
+                // 緯度・経度が約20m（0.0002度）以上離れているか判定する関数
+                const isDifferentLocation = (entry, tLat, tLon) => {
+                    return Math.abs(entry.lat - tLat) > 0.0002 || Math.abs(entry.lon - tLon) > 0.0002;
+                };
+
+                if (isDifferentLocation(existing, lat, lon)) {
+                    // 離れている場合は、別キー（"71230 1_2" など）を探すか新しく作る
+                    let suffix = 2;
+                    let foundClose = false;
+                    while (window.globalStopMap.has(`${originalStopId}_${suffix}`)) {
+                        existing = window.globalStopMap.get(`${originalStopId}_${suffix}`);
+                        if (!isDifferentLocation(existing, lat, lon)) {
+                            // 既存の派生バス停と座標が近ければそれにマージする
+                            mapKey = `${originalStopId}_${suffix}`;
+                            foundClose = true;
+                            break;
+                        }
+                        suffix++;
+                    }
+                    if (!foundClose) {
+                        // どれとも近くない場合は新しいキーを発行する
+                        mapKey = `${originalStopId}_${suffix}`;
+                    }
+                }
+            }
+
+            // マーカーの登録または更新
+            if (window.globalStopMap.has(mapKey)) {
+                const entry = window.globalStopMap.get(mapKey);
                 if (!entry.companies.includes(company.id)) {
                     entry.companies.push(company.id);
                 }
@@ -67,16 +98,24 @@ window.loadCompanyStops = async function(company) {
                     radius: 5, color: '#000', weight: 1, fill: false, interactive: false
                 });
 
+                // lat, lon, originalStopId を記録しておく
                 const entry = {
-                    marker: marker, centerMarker: centerMarker, companies: [company.id], name: stopName
+                    marker: marker, 
+                    centerMarker: centerMarker, 
+                    companies: [company.id], 
+                    name: stopName,
+                    lat: lat,
+                    lon: lon,
+                    originalStopId: originalStopId // 時刻表APIに渡す用の本来のID
                 };
 
                 marker.on('click', () => {
-                    const safeId = String(stopId).replace(/\s+/g, '_');
+                    // 時刻表を表示する箱のIDには本来のIDを使う
+                    const safeId = String(originalStopId).replace(/\s+/g, '_');
                     const popupHtml = `
                         <div style="min-width:220px;">
                             <strong>${entry.name}</strong><br>
-                            <small style="color:#999;">ID: ${stopId}</small>
+                            <small style="color:#999;">ID: ${originalStopId}</small>
                             <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
                             <div class="timetable-content-${safeId}" style="max-height: 250px; overflow-y: auto;">
                                 <div class="loading">時刻表を準備中...</div>
@@ -89,19 +128,19 @@ window.loadCompanyStops = async function(company) {
                         return c && c.visible !== false;
                     });
                     if (window.TimetableManager) {
-                        window.TimetableManager.showTimetable(stopId, visibleCompanies);
+                        // 時刻表APIには本来のID(originalStopId)を渡す
+                        window.TimetableManager.showTimetable(originalStopId, visibleCompanies);
                     }
                 });
 
-                window.globalStopMap.set(stopId, entry);
+                window.globalStopMap.set(mapKey, entry);
             }
         });
     } catch (e) { console.error(e); }
 
-    company.isStopsLoaded = true; // 読み込み完了フラグを立てる
+    company.isStopsLoaded = true;
 };
 
-// ★起動時に呼び出される関数
 window.loadAndDisplayStops = async function() {
     if (!window.map) {
         setTimeout(window.loadAndDisplayStops, 500);
@@ -109,45 +148,35 @@ window.loadAndDisplayStops = async function() {
     }
 
     const promises = window.BUS_COMPANIES
-        .filter(c => c.active && c.visible !== false) // 表示ONの会社のみ
+        .filter(c => c.active && c.visible !== false)
         .map(c => window.loadCompanyStops(c));
     
     await Promise.all(promises);
     window.updateStopsDisplay();
 };
 
-/**
- * 会社選択のチェック状態に応じて、バス停の表示・非表示・色を即座に更新する関数
- */
 window.updateStopsDisplay = function() {
     if (!window.map) return;
 
-    // 現在「表示」になっている会社のIDリストを作成
     const visibleCompanyIds = window.BUS_COMPANIES.filter(c => c.visible !== false).map(c => c.id);
 
-    window.globalStopMap.forEach((entry, stopId) => {
-        // このバス停に停車する会社のうち、表示ONになっている会社のリスト
+    window.globalStopMap.forEach((entry, mapKey) => {
         const activeCompaniesForStop = entry.companies.filter(cid => visibleCompanyIds.includes(cid));
 
         if (activeCompaniesForStop.length === 0) {
-            // 表示ONの会社が一つもない → 地図から消す
             if (window.map.hasLayer(entry.marker)) {
                 window.map.removeLayer(entry.marker);
                 window.map.removeLayer(entry.centerMarker);
             }
         } else {
-            // 表示ONの会社がある → 地図に出す
             if (!window.map.hasLayer(entry.marker)) {
                 entry.marker.addTo(window.map);
                 entry.centerMarker.addTo(window.map);
             }
 
-            // ★色の決定
             if (activeCompaniesForStop.length > 1) {
-                // 複数社の表示がONになっているので「紫色」
                 entry.marker.setStyle({ fillColor: window.APP_CONFIG.COMPANIES.shared.color });
             } else {
-                // 1社しか表示ONになっていないので「その会社の色（単色）」に戻す
                 const singleCompanyId = activeCompaniesForStop[0];
                 const markerColor = window.APP_CONFIG.COMPANIES[singleCompanyId] 
                                     ? window.APP_CONFIG.COMPANIES[singleCompanyId].color 
