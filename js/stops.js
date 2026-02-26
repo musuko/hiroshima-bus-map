@@ -3,6 +3,9 @@
  * 役割: バス停の統合管理と地図描画
  */
 
+// 後から表示切替できるように、バス停データをグローバルに保存する箱
+window.globalStopMap = new Map();
+
 async function loadAndDisplayStops() {
     if (!window.map) {
         setTimeout(loadAndDisplayStops, 500);
@@ -10,9 +13,6 @@ async function loadAndDisplayStops() {
     }
 
     console.log("📍 バス停の統合・描画を開始します...");
-
-    // stop_id をキーにして、マーカーと会社リストを管理する
-    const stopMap = new Map();
 
     for (const company of BUS_COMPANIES) {
         try {
@@ -40,42 +40,33 @@ async function loadAndDisplayStops() {
 
                 if (isNaN(lat) || isNaN(lon)) return;
 
-                if (stopMap.has(stopId)) {
-                    // すでに同じIDのバス停がある場合（共通バス停）
-                    const entry = stopMap.get(stopId);
+                if (window.globalStopMap.has(stopId)) {
+                    // すでに登録されているバス停（共通バス停）
+                    const entry = window.globalStopMap.get(stopId);
                     if (!entry.companies.includes(company.id)) {
                         entry.companies.push(company.id);
-                        // 色を紫に変更
-                        entry.marker.setStyle({
-                            fillColor: window.APP_CONFIG.COMPANIES.shared.color
-                        });
                     }
                 } else {
-                    // 新規バス停
-                    const markerColor = (company.id === 'hirobus') ? 
-                        window.APP_CONFIG.COMPANIES.hirobus.color : 
-                        window.APP_CONFIG.COMPANIES.hiroden.color;
-
+                    // 新規バス停作成 (ここではまだ地図に追加しない)
                     const marker = L.circleMarker([lat, lon], {
                         radius: 6,
-                        fillColor: markerColor,
                         color: 'rgba(0,0,0,0)',
                         weight: 15,
                         opacity: 0,
                         fillOpacity: 1
-                    }).addTo(window.map);
+                    });
 
                     // 見た目用（中央の丸）
-                    L.circleMarker([lat, lon], {
+                    const centerMarker = L.circleMarker([lat, lon], {
                         radius: 5, color: '#000', weight: 1, fill: false, interactive: false
-                    }).addTo(window.map);
+                    });
 
                     const entry = {
                         marker: marker,
-                        companies: [company.id],
+                        centerMarker: centerMarker,
+                        companies:[company.id],
                         name: stopName
                     };
-                    stopMap.set(stopId, entry);
 
                     // クリックイベント
                     marker.on('click', () => {
@@ -91,14 +82,65 @@ async function loadAndDisplayStops() {
                             </div>`;
                         marker.bindPopup(popupHtml).openPopup();
                         
-                        // TimetableManager に会社リストを渡して呼び出し
-                        window.TimetableManager.showTimetable(stopId, entry.companies);
+                        // 現在チェックが入っている会社のみを時刻表に渡す
+                        const visibleCompanies = entry.companies.filter(cid => {
+                            const c = window.BUS_COMPANIES.find(comp => comp.id === cid);
+                            return c && c.visible !== false;
+                        });
+                        window.TimetableManager.showTimetable(stopId, visibleCompanies);
                     });
+
+                    window.globalStopMap.set(stopId, entry);
                 }
             });
         } catch (e) { console.error(e); }
     }
-    console.log(`✅ バス停の描画が完了しました。総バス停数: ${stopMap.size}`);
+    console.log(`✅ バス停データの読み込みが完了しました。総バス停数: ${window.globalStopMap.size}`);
+    
+    // データ読み込みが終わったら、設定に基づき地図に表示する
+    window.updateStopsDisplay();
 }
+
+/**
+ * 会社選択のチェック状態に応じて、バス停の表示・非表示・色を即座に更新する関数
+ */
+window.updateStopsDisplay = function() {
+    if (!window.map) return;
+
+    // 現在「表示」になっている会社のIDリストを作成
+    const visibleCompanyIds = window.BUS_COMPANIES.filter(c => c.visible !== false).map(c => c.id);
+
+    window.globalStopMap.forEach((entry, stopId) => {
+        // このバス停に停車する会社のうち、表示ONになっている会社のリスト
+        const activeCompaniesForStop = entry.companies.filter(cid => visibleCompanyIds.includes(cid));
+
+        if (activeCompaniesForStop.length === 0) {
+            // 表示ONの会社が一つもない → 地図から消す
+            if (window.map.hasLayer(entry.marker)) {
+                window.map.removeLayer(entry.marker);
+                window.map.removeLayer(entry.centerMarker);
+            }
+        } else {
+            // 表示ONの会社がある → 地図に出す
+            if (!window.map.hasLayer(entry.marker)) {
+                entry.marker.addTo(window.map);
+                entry.centerMarker.addTo(window.map);
+            }
+
+            // ★色の決定（魔法の部分）
+            if (activeCompaniesForStop.length > 1) {
+                // 複数社の表示がONになっているので「紫色」
+                entry.marker.setStyle({ fillColor: window.APP_CONFIG.COMPANIES.shared.color });
+            } else {
+                // 1社しか表示ONになっていないので「その会社の色（単色）」に戻す
+                const singleCompanyId = activeCompaniesForStop[0];
+                const markerColor = window.APP_CONFIG.COMPANIES[singleCompanyId] 
+                                    ? window.APP_CONFIG.COMPANIES[singleCompanyId].color 
+                                    : '#000';
+                entry.marker.setStyle({ fillColor: markerColor });
+            }
+        }
+    });
+};
 
 loadAndDisplayStops();
