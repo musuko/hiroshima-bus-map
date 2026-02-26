@@ -13,6 +13,17 @@ window.APP_CONFIG = {
         STOP_RADIUS: 6,         // バス停の見た目の半径
         STOP_WEIGHT: 15,        // バス停の当たり判定の太さ
         BUS_ICON_SIZE: 20       // バスアイコンのサイズ
+                
+        // ★追加：デザイナーが自由にいじれるアイコンのHTMLひな形
+        // {color} の部分が自動的に会社の色に置き換わります
+        BUS_ICON_HTML: `<div style="
+            width: 16px; 
+            height: 16px; 
+            background-color: {color}; 
+            border: 2px solid #000000;
+            border-radius: 2px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+        "></div>`
     },
     // UIの設定
     UI: {
