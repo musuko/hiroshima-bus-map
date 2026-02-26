@@ -26,10 +26,27 @@ window.loadCompanyStops = async function(company) {
 
         lines.slice(1).forEach((line) => {
             if (!line.trim()) return;
-            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+
+            // ★犯人1対策：ダブルクォーテーション内のカンマで区切られないようにする安全な分割処理
+            const cols =[];
+            let inQuotes = false;
+            let current = '';
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes; // クォーテーションのオン・オフを切り替え
+                } else if (char === ',' && !inQuotes) {
+                    cols.push(current.trim().replace(/^"|"$/g, ''));
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            cols.push(current.trim().replace(/^"|"$/g, ''));
+
             if (cols.length <= Math.max(latIdx, lonIdx)) return;
 
-            const stopId = cols[idIdx];
+            const stopId = cols[idIdx]; // 「70030 1」のようなスペース入りIDも正確に取得されます
             const lat = parseFloat(cols[latIdx]);
             const lon = parseFloat(cols[lonIdx]);
             const stopName = cols[nameIdx];
@@ -84,7 +101,7 @@ window.loadCompanyStops = async function(company) {
     company.isStopsLoaded = true; // 読み込み完了フラグを立てる
 };
 
-// ★起動時に呼び出される関数（表示ONの会社だけをロードする）
+// ★起動時に呼び出される関数
 window.loadAndDisplayStops = async function() {
     if (!window.map) {
         setTimeout(window.loadAndDisplayStops, 500);
@@ -125,7 +142,7 @@ window.updateStopsDisplay = function() {
                 entry.centerMarker.addTo(window.map);
             }
 
-            // ★色の決定（魔法の部分）
+            // ★色の決定
             if (activeCompaniesForStop.length > 1) {
                 // 複数社の表示がONになっているので「紫色」
                 entry.marker.setStyle({ fillColor: window.APP_CONFIG.COMPANIES.shared.color });
