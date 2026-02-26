@@ -77,7 +77,7 @@ async function getFullTimetableForTrip(tripId, companyId) {
                 const text = await splitRes.text();
                 processText(text, fileIndex === 1);
                 
-                // 次のファイルへ（stop_times_2.txt, 3.txt...）
+                // 次のファイルへ
                 fileIndex++;
             }
         }
@@ -88,4 +88,9 @@ async function getFullTimetableForTrip(tripId, companyId) {
     } catch (e) {
         // 通信エラーなどの場合
         console.error("fetch error:", e);
-        return
+        return[]; // ← ここで空の配列を返す
+    }
+}
+
+// 最後にグローバル関数として登録する
+window.getFullTimetableForTrip = getFullTimetableForTrip;
