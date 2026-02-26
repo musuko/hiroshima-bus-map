@@ -118,21 +118,46 @@ function setupCompanyFilter() {
     });
 
     // 決定して閉じるボタン
-    btnClose.addEventListener('click', () => {
+    btnClose.addEventListener('click', async () => { // ★ async を追加
         modal.style.display = 'none';
         
-        // 3. チェック状態をBUS_COMPANIESと保存用データに反映
         const saveObj = {};
+        const companiesToLoad = []; // 追加でロードが必要な会社のリスト
+
         companyList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
             const company = window.BUS_COMPANIES.find(c => c.id === cb.value);
             if (company) {
                 company.visible = cb.checked;
                 saveObj[company.id] = cb.checked;
+                
+                // ★チェックがONになったが、まだデータが未ロードの会社をピックアップ
+                if (cb.checked && (!company.isGtfsLoaded || !company.isStopsLoaded)) {
+                    companiesToLoad.push(company);
+                }
             }
         });
 
-        // スマホ本体に設定を保存！次回起動時もこの状態になります
+        // スマホ本体に設定を保存
         localStorage.setItem('busVisibleConfig', JSON.stringify(saveObj));
+
+        // ★未ロードの会社があれば、ここで動的にデータを取得する（遅延読み込み）
+        if (companiesToLoad.length > 0) {
+            console.log("📥 新たに選択された会社のデータを読み込みます...");
+            
+            // 各会社のデータを並行して読み込む処理を作成
+            const promises = companiesToLoad.map(async (company) => {
+                if (typeof window.loadCompanyGtfsData === 'function') {
+                    await window.loadCompanyGtfsData(company);
+                }
+                if (typeof window.loadCompanyStops === 'function') {
+                    await window.loadCompanyStops(company);
+                }
+            });
+            
+            // 全ての読み込みが終わるまで待つ
+            await Promise.all(promises);
+            console.log("✅ 追加データの読み込みが完了しました！");
+        }
 
         // 4. マップの表示を即座に更新する
         if (typeof window.updateStopsDisplay === 'function') {
@@ -142,6 +167,13 @@ function setupCompanyFilter() {
             window.updateBusPositions();
         }
     });
+
+        localStorage.setItem('busVisibleConfig', JSON.stringify(saveObj));
+
+        // ★未ロードの会社があれば、ここで動的にデータを取得する（遅延読み込み）
+        if (companiesToLoad.length > 0) {
+            console.log("📥 新たに選択された会社のデータを読み込みます...");
+            const promises =
 }
 
 // 起動シーケンス
