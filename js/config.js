@@ -36,7 +36,15 @@ window.APP_CONFIG = {
         hirobus: { color: '#FF0000', textColor: '#e60012' },
         hiroko: { color: '#eb9b6f', textColor: '#eb9b6f' },
         geiyo: { color: '#33ccff', textColor: '#33ccff' },
+        bihoku: { color: '#191970', textColor: '#191970' },
+        jrchugokubus: { color: '#000080', textColor: '#000080' },
         bonbus: { color: '#2e8b57', textColor: '#228b22' },
+        forble: { color: '#dc143c', textColor: '#dc143c' },
+        ohnoheart: { color: '#4169e1', textColor: '#4169e1' },
+        kure_seikatsu: { color: '#ADFF2F', textColor: '#008000' },
+        hatsukaichi_jishu: { color: '#ff00ff', textColor: '#ff00ff' },
+        ato: { color: '#fffafa', textColor: '#000000' },
+        onomichi: { color: '#7fffd4', textColor: '#7fffd4' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
 };
@@ -76,10 +84,74 @@ window.BUS_COMPANIES =[
         visible: true   // ★追加
     },
     {
+        id: 'bihoku',
+        name: '備北バス',
+        staticPath: './info/bihoku/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=12`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'jrchugokubus',
+        name: 'JRバス',
+        staticPath: './info/jrchugokubus/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=15`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
         id: 'bonbus',
         name: 'ボンバス',
         staticPath: './info/bonbus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=13`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'forble',
+        name: 'フォーブル',
+        staticPath: './info/forble/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=14`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'ohnoheart',
+        name: 'おおのハートバス',
+        staticPath: './info/ohnoheart/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=17`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'kure_seikatsu',
+        name: '呉生活バス',
+        staticPath: './info/kure_seikatsu/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=18`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'hatsukaichi_jishu',
+        name: '廿日市自主運行バス',
+        staticPath: './info/hatsukaichi_jishu/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=19`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'ato',
+        name: '朝日交通',
+        staticPath: './info/ato/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=54`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'onomichi',
+        name: 'おのみちバス',
+        staticPath: './info/onomichi/',
+        realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=53`,
         active: true,
         visible: true   // ★追加
     }
