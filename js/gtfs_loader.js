@@ -1,80 +1,77 @@
 /**
  * js/gtfs_loader.js
- * 役割: アプリ起動時に「バス停名」と「系統情報」をメモリに読み込む
+ * 役割: 「バス停名」と「系統情報」をメモリに読み込む
  */
 
-// --- 1. 最初に必ず全ての箱を初期化する（他ファイルでのエラー防止） ---
-window.stopLookup = {}; 
-window.tripLookup = {};
-window.routeLookup = {}; // ここに { 会社ID: { 系統ID: {short, long} } } の形で格納
-window.routeJpLookup = {};
-window.gtfsCache = {};
+window.stopLookup = window.stopLookup || {}; 
+window.tripLookup = window.tripLookup || {};
+window.routeLookup = window.routeLookup || {}; 
+window.routeJpLookup = window.routeJpLookup || {};
 window.isGtfsReady = false;
 
-async function prepareAllGtfsData() {
-    console.log("🚀 起動プロセス: 停留所および系統データの読み込みを開始します");
+// ★1つの会社のデータだけを読み込む関数
+window.loadCompanyGtfsData = async function(company) {
+    if (company.isGtfsLoaded) return; // 既にロード済みならスキップ
+
+    console.log(`🚀 ${company.name} のGTFSデータを読み込み中...`);
     
-    // config.js で active:true になっている会社をループ
-    for (const company of BUS_COMPANIES.filter(c => c.active)) {
-        
-        // --- A. stops.txt (バス停名) の読み込み ---
-        try {
-            const res = await fetch(`${company.staticPath}stops.txt`);
-            if (res.ok) {
-                const text = await res.text();
-                const lines = text.trim().split(/\r?\n/);
-                const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                const sIdIdx = head.indexOf('stop_id');
-                const sNameIdx = head.indexOf('stop_name');
+    // --- A. stops.txt の読み込み ---
+    try {
+        const res = await fetch(`${company.staticPath}stops.txt`);
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.trim().split(/\r?\n/);
+            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            const sIdIdx = head.indexOf('stop_id');
+            const sNameIdx = head.indexOf('stop_name');
 
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                    if (cols.length > sIdIdx && cols[sIdIdx]) {
-                        const stopId = cols[sIdIdx].trim();
-                        window.stopLookup[stopId] = { name: cols[sNameIdx] || "名称不明" };
-                    }
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (cols.length > sIdIdx && cols[sIdIdx]) {
+                    const stopId = cols[sIdIdx].trim();
+                    window.stopLookup[stopId] = { name: cols[sNameIdx] || "名称不明" };
                 }
-                console.log(`✅ ${company.name} の停留所データ読込完了`);
             }
-        } catch (e) {
-            console.error(`${company.name} stops.txt 読込失敗:`, e);
         }
+    } catch (e) { console.error(`${company.name} stops.txt 読込失敗:`, e); }
 
-        // --- B. routes.txt (系統・路線名) の読み込み ---
-        try {
-            const res = await fetch(`${company.staticPath}routes.txt`);
-            if (res.ok) {
-                const text = await res.text();
-                const lines = text.trim().split(/\r?\n/);
-                const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                
-                const rIdIdx = head.indexOf('route_id');
-                const rShortIdx = head.indexOf('route_short_name');
-                const rLongIdx = head.indexOf('route_long_name');
+    // --- B. routes.txt の読み込み ---
+    try {
+        const res = await fetch(`${company.staticPath}routes.txt`);
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.trim().split(/\r?\n/);
+            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            
+            const rIdIdx = head.indexOf('route_id');
+            const rShortIdx = head.indexOf('route_short_name');
+            const rLongIdx = head.indexOf('route_long_name');
 
-                // 会社ごとの保存場所を作る
-                window.routeLookup[company.id] = {};
+            window.routeLookup[company.id] = {};
 
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                    if (cols.length > rIdIdx && cols[rIdIdx]) {
-                        const routeId = cols[rIdIdx].trim();
-                        window.routeLookup[company.id][routeId] = {
-                            shortName: cols[rShortIdx] || "",        // 系統番号
-                            longName: cols[rLongIdx] || "路線情報なし" // 路線名
-                        };
-                    }
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                if (cols.length > rIdIdx && cols[rIdIdx]) {
+                    const routeId = cols[rIdIdx].trim();
+                    window.routeLookup[company.id][routeId] = {
+                        shortName: cols[rShortIdx] || "",
+                        longName: cols[rLongIdx] || "路線情報なし"
+                    };
                 }
-                console.log(`✅ ${company.name} の系統データ読込完了`);
             }
-        } catch (e) {
-            console.error(`${company.name} routes.txt 読込失敗:`, e);
         }
-    }
+    } catch (e) { console.error(`${company.name} routes.txt 読込失敗:`, e); }
 
+    company.isGtfsLoaded = true; // 読み込み完了フラグを立てる
+};
+
+// ★起動時に呼び出される関数（表示ONの会社だけをロードする）
+window.prepareAllGtfsData = async function() {
+    const promises = window.BUS_COMPANIES
+        .filter(c => c.active && c.visible !== false) // 表示ONの会社のみ
+        .map(c => window.loadCompanyGtfsData(c));
+    
+    await Promise.all(promises);
     window.isGtfsReady = true; 
-    console.log("🏁 すべてのプリロードが完了しました");
-}
-
-// 実行
-prepareAllGtfsData();
+    console.log("🏁 初期のGTFSデータロードが完了しました");
+};
