@@ -75,8 +75,8 @@ async function updateBusPositions() {
                 if (busMarkers[vehicleId]) {
                     busMarkers[vehicleId].setLatLng([lat, lon]);
                 } else {
-                    // ここで createSquareIcon を呼び出します
-                    const icon = createSquareIcon(company.id);
+                    // ここで createBusIcon を呼び出します
+                    const icon = createBusIcon(company.id);
                     const marker = L.marker([lat, lon], { icon: icon, zIndexOffset: 1000 })
                         .addTo(targetMap)
                         .bindPopup(finalPopupHtml, { autoClose: false });
