@@ -65,7 +65,7 @@ window.TimetableManager = {
                 if (tripInfoMap.has(tid)) {
                     const info = tripInfoMap.get(tid);
                     const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
-                    const destInfo = window.stopLookup[item.destId];
+                    const destInfo = window.globalStopMap.get(item.destId);
 
                     results.push({
                         time: item.time.substring(0, 5),
