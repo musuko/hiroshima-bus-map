@@ -72,7 +72,6 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
                             seq: parseInt(cols[seqIdx] || 0)
                         });
                     }
-                    console.log("points length:", points.length);
                 }
             }
 
