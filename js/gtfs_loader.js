@@ -10,7 +10,31 @@ window.routeJpLookup = window.routeJpLookup || {};
 window.tripToShapeLookup = window.tripToShapeLookup || {};
 window.companyGtfsCache = window.companyGtfsCache || {};
 window.isGtfsReady = false;
+// ===== Global Loading Manager =====
+window.LoadingManager = {
+  count: 0,
 
+  start() {
+    this.count++;
+    this.update();
+  },
+
+  end() {
+    this.count = Math.max(0, this.count - 1);
+    this.update();
+  },
+
+  update() {
+    const el = document.getElementById("loading-overlay");
+    if (!el) return;
+
+    if (this.count > 0) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  }
+};
 // ★1つの会社のデータだけを読み込む関数
 window.loadCompanyGtfsData = async function(company) {
     if (company.isGtfsLoaded) return; // 既にロード済みならスキップ
@@ -104,11 +128,19 @@ window.loadCompanyGtfsData = async function(company) {
 
 // ★起動時に呼び出される関数（表示ONの会社だけをロードする）
 window.prepareAllGtfsData = async function() {
+  LoadingManager.start();
+
+  try {
     const promises = window.BUS_COMPANIES
-        .filter(c => c.active && c.visible !== false) // 表示ONの会社のみ
-        .map(c => window.loadCompanyGtfsData(c));
-    
+      .filter(c => c.active && c.visible !== false)
+      .map(c => window.loadCompanyGtfsData(c));
+
     await Promise.all(promises);
-    window.isGtfsReady = true; 
+
+    window.isGtfsReady = true;
     console.log("🏁 初期のGTFSデータロードが完了しました");
+
+  } finally {
+    LoadingManager.end();
+  }
 };
