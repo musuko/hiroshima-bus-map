@@ -131,6 +131,9 @@ async function updateBusPositions() {
                     if (window.tripToShapeLookup) {
                         const globalTripKey = `${company.id}_${rawTripId}`;
                         const shapeId = window.tripToShapeLookup[globalTripKey];
+                        
+                        console.log("Trip→Shape lookup:", globalTripKey, shapeId);
+                        
                         if (shapeId && window.ShapeManager) {
                             window.ShapeManager.drawShape(company.id, shapeId);
                         } else {
