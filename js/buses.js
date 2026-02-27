@@ -82,6 +82,12 @@ async function updateBusPositions() {
                         .bindPopup(finalPopupHtml, { autoClose: false });
 
                 marker.on('click', async () => {
+
+                    if (!window.tripToShapeLookup) {
+                        console.log("GTFS未ロード → 読み込み開始");
+                        await window.prepareAllGtfsData();
+                    }
+                
                     await new Promise(r => setTimeout(r, 200));
                     const popupDiv = document.getElementById(`popup-${vehicleId}`);
                     if (!popupDiv) return;
