@@ -31,9 +31,8 @@ window.loadCompanyStops = async function(company) {
             let current = '';
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
-                if (char === '"') {
-                    inQuotes = !inQuotes;
-                } else if (char === ',' && !inQuotes) {
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) {
                     cols.push(current.trim().replace(/^"|"$/g, ''));
                     current = '';
                 } else {
@@ -44,42 +43,35 @@ window.loadCompanyStops = async function(company) {
 
             if (cols.length <= Math.max(latIdx, lonIdx)) return;
 
-            const originalStopId = cols[idIdx]; // 実際のID (例: "71230 1")
+            const originalStopId = cols[idIdx];
             const lat = parseFloat(cols[latIdx]);
             const lon = parseFloat(cols[lonIdx]);
             const stopName = cols[nameIdx];
 
             if (isNaN(lat) || isNaN(lon)) return;
 
-            // ★今回の解決策：同じIDでも座標が離れていたら別の「内部キー」を作る
+            // 同じIDでも座標が離れていたら別の「内部キー」を作る
             let mapKey = originalStopId;
 
             if (window.globalStopMap.has(mapKey)) {
                 let existing = window.globalStopMap.get(mapKey);
-                
-                // 緯度・経度が約20m（0.0002度）以上離れているか判定する関数
                 const isDifferentLocation = (entry, tLat, tLon) => {
                     return Math.abs(entry.lat - tLat) > 0.0002 || Math.abs(entry.lon - tLon) > 0.0002;
                 };
 
                 if (isDifferentLocation(existing, lat, lon)) {
-                    // 離れている場合は、別キー（"71230 1_2" など）を探すか新しく作る
                     let suffix = 2;
                     let foundClose = false;
                     while (window.globalStopMap.has(`${originalStopId}_${suffix}`)) {
                         existing = window.globalStopMap.get(`${originalStopId}_${suffix}`);
                         if (!isDifferentLocation(existing, lat, lon)) {
-                            // 既存の派生バス停と座標が近ければそれにマージする
                             mapKey = `${originalStopId}_${suffix}`;
                             foundClose = true;
                             break;
                         }
                         suffix++;
                     }
-                    if (!foundClose) {
-                        // どれとも近くない場合は新しいキーを発行する
-                        mapKey = `${originalStopId}_${suffix}`;
-                    }
+                    if (!foundClose) mapKey = `${originalStopId}_${suffix}`;
                 }
             }
 
@@ -90,27 +82,37 @@ window.loadCompanyStops = async function(company) {
                     entry.companies.push(company.id);
                 }
             } else {
-                const marker = L.circleMarker([lat, lon], {
+                // ★いよいよ出番！「IDが違うのに座標が同じ」バス停を少しズラす魔法
+                let finalLat = lat;
+                let finalLon = lon;
+                const offset = 0.00005; // 約5メートル
+                
+                // すでに登録されている全バス停の中で、位置が丸被りしているものがあればズラす
+                while (Array.from(window.globalStopMap.values()).some(e => 
+                    Math.abs(e.lat - finalLat) < 0.00001 && Math.abs(e.lon - finalLon) < 0.00001
+                )) {
+                    finalLat += offset;
+                    finalLon += offset; // 少し右上にズラす
+                }
+
+                const marker = L.circleMarker([finalLat, finalLon], {
                     radius: 6, color: 'rgba(0,0,0,0)', weight: 15, opacity: 0, fillOpacity: 1
                 });
-
-                const centerMarker = L.circleMarker([lat, lon], {
+                const centerMarker = L.circleMarker([finalLat, finalLon], {
                     radius: 5, color: '#000', weight: 1, fill: false, interactive: false
                 });
 
-                // lat, lon, originalStopId を記録しておく
                 const entry = {
                     marker: marker, 
                     centerMarker: centerMarker, 
-                    companies: [company.id], 
+                    companies:[company.id], 
                     name: stopName,
-                    lat: lat,
-                    lon: lon,
-                    originalStopId: originalStopId // 時刻表APIに渡す用の本来のID
+                    lat: finalLat, // ズラした後の座標を保存する
+                    lon: finalLon,
+                    originalStopId: originalStopId 
                 };
 
                 marker.on('click', () => {
-                    // 時刻表を表示する箱のIDには本来のIDを使う
                     const safeId = String(originalStopId).replace(/\s+/g, '_');
                     const popupHtml = `
                         <div style="min-width:220px;">
@@ -128,7 +130,6 @@ window.loadCompanyStops = async function(company) {
                         return c && c.visible !== false;
                     });
                     if (window.TimetableManager) {
-                        // 時刻表APIには本来のID(originalStopId)を渡す
                         window.TimetableManager.showTimetable(originalStopId, visibleCompanies);
                     }
                 });
@@ -146,18 +147,15 @@ window.loadAndDisplayStops = async function() {
         setTimeout(window.loadAndDisplayStops, 500);
         return;
     }
-
     const promises = window.BUS_COMPANIES
         .filter(c => c.active && c.visible !== false)
         .map(c => window.loadCompanyStops(c));
-    
     await Promise.all(promises);
     window.updateStopsDisplay();
 };
 
 window.updateStopsDisplay = function() {
     if (!window.map) return;
-
     const visibleCompanyIds = window.BUS_COMPANIES.filter(c => c.visible !== false).map(c => c.id);
 
     window.globalStopMap.forEach((entry, mapKey) => {
@@ -173,7 +171,6 @@ window.updateStopsDisplay = function() {
                 entry.marker.addTo(window.map);
                 entry.centerMarker.addTo(window.map);
             }
-
             if (activeCompaniesForStop.length > 1) {
                 entry.marker.setStyle({ fillColor: window.APP_CONFIG.COMPANIES.shared.color });
             } else {
