@@ -87,6 +87,12 @@ async function updateBusPositions() {
                         console.log("GTFS未ロード → 読み込み開始");
                         await window.prepareAllGtfsData();
                     }
+                    const globalTripKey = `${company.id}_${rawTripId}`;
+                    const shapeId = window.tripToShapeLookup[globalTripKey];
+                    
+                    if (shapeId && window.ShapeManager) {
+                        window.ShapeManager.drawShape(company.id, shapeId);
+                    }
                 
                     await new Promise(r => setTimeout(r, 200));
                     const popupDiv = document.getElementById(`popup-${vehicleId}`);
