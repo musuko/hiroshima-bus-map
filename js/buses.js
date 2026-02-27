@@ -83,10 +83,8 @@ async function updateBusPositions() {
 
                 marker.on('click', async () => {
 
-                    if (!window.tripToShapeLookup || 
-                        Object.keys(window.tripToShapeLookup).length === 0) {
-                    
-                        console.log("GTFS未完成 → 読み込み開始");
+                    if (!window.isGtfsReady) {
+                        console.log("GTFS未準備 → 読み込みます");
                         await window.prepareAllGtfsData();
                     }
                     const globalTripKey = `${company.id}_${rawTripId}`;
