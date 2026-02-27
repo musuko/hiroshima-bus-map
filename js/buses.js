@@ -109,10 +109,6 @@ async function updateBusPositions() {
                     
                     // ここでデータを取得
                     const stopsData = await window.getFullTimetableForTrip(rawTripId, company.id);
-                    
-                    // --- 取得結果のログ表示 ---
-                    console.log(`📊 stopsDataの結果 (${vehicleId}):`, stopsData);
-                    // -----------------------
                 
                     if (stopsData && stopsData.length > 0) {
                         // 成功時
@@ -143,9 +139,7 @@ async function updateBusPositions() {
                     if (window.tripToShapeLookup) {
                         const globalTripKey = `${company.id}_${rawTripId}`;
                         const shapeId = window.tripToShapeLookup[globalTripKey];
-                        
-                        console.log("Trip→Shape lookup:", globalTripKey, shapeId);
-                        
+
                         if (shapeId && window.ShapeManager) {
                             window.ShapeManager.drawShape(company.id, shapeId);
                         } else {
