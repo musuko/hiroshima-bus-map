@@ -62,6 +62,42 @@ window.loadCompanyGtfsData = async function(company) {
         }
     } catch (e) { console.error(`${company.name} routes.txt 読込失敗:`, e); }
 
+    // --- 【ここから追加】C. trips.txt の読み込み (trip_id と shape_id の紐付け) ---
+    window.tripToShapeLookup = window.tripToShapeLookup || {};
+    try {
+        const resTrips = await fetch(`${company.staticPath}trips.txt`);
+        if (resTrips.ok) {
+            const textTrips = await resTrips.text();
+            const linesTrips = textTrips.trim().split(/\r?\n/);
+            
+            // ヘッダーの解析（ダブルクォーテーションを除去）
+            const headTrips = linesTrips[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            const tIdIdx = headTrips.indexOf('trip_id');
+            const sIdIdx = headTrips.indexOf('shape_id');
+
+            // trip_id と shape_id の列が存在する場合のみ処理
+            if (tIdIdx >= 0 && sIdIdx >= 0) {
+                for (let i = 1; i < linesTrips.length; i++) {
+                    if (!linesTrips[i].trim()) continue; // 空行スキップ
+                    
+                    // カンマ分割（簡易版。trips.txtは通常カンマを含まないのでこれで安全です）
+                    const cols = linesTrips[i].split(',');
+                    if (cols.length > Math.max(tIdIdx, sIdIdx)) {
+                        const tripId = cols[tIdIdx].trim().replace(/^"|"$/g, '');
+                        const shapeId = cols[sIdIdx].trim().replace(/^"|"$/g, '');
+                        
+                        if (tripId && shapeId) {
+                            // グローバルな検索用オブジェクトに保存（例: "hiroden_12345": "shape_A"）
+                            window.tripToShapeLookup[`${company.id}_${tripId}`] = shapeId;
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) { 
+        console.error(`${company.name} trips.txt 読込失敗:`, e); 
+    }
+
     company.isGtfsLoaded = true; // 読み込み完了フラグを立てる
 };
 
