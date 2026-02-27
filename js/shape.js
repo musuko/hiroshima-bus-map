@@ -51,6 +51,13 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
                 const cols = lines[i].split(',');
                 if (cols.length > Math.max(sIdIdx, latIdx, lonIdx)) {
                     const currentShapeId = cols[sIdIdx].trim().replace(/^"|"$/g, '');
+                    if (i < 5) {
+                        console.log(
+                            "比較:",
+                            JSON.stringify(currentShapeId),
+                            JSON.stringify(shapeId)
+                        );
+                    }
                     if (currentShapeId === shapeId) {
                         points.push({
                             lat: parseFloat(cols[latIdx]),
