@@ -7,6 +7,8 @@ window.stopLookup = window.stopLookup || {};
 window.tripLookup = window.tripLookup || {};
 window.routeLookup = window.routeLookup || {}; 
 window.routeJpLookup = window.routeJpLookup || {};
+window.tripToShapeLookup = window.tripToShapeLookup || {};
+window.companyGtfsCache = window.companyGtfsCache || {};
 window.isGtfsReady = false;
 
 // ★1つの会社のデータだけを読み込む関数
@@ -63,7 +65,6 @@ window.loadCompanyGtfsData = async function(company) {
     } catch (e) { console.error(`${company.name} routes.txt 読込失敗:`, e); }
 
     // --- 【ここから追加】C. trips.txt の読み込み (trip_id と shape_id の紐付け) ---
-    window.tripToShapeLookup = window.tripToShapeLookup || {};
     try {
         const resTrips = await fetch(`${company.staticPath}trips.txt`);
         if (resTrips.ok) {
