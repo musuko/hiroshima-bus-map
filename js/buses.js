@@ -125,6 +125,18 @@ async function updateBusPositions() {
                                 <small>(TripID: ${rawTripId})</small>
                             </div>`;
                     }
+                    // --- (既存のコード) 時刻表データの取得処理などの後あたりに ---
+                    
+                    // ★ルート（shape）の描画呼び出し
+                    if (window.tripToShapeLookup) {
+                        const globalTripKey = `${company.id}_${rawTripId}`;
+                        const shapeId = window.tripToShapeLookup[globalTripKey];
+                        if (shapeId && window.ShapeManager) {
+                            window.ShapeManager.drawShape(company.id, shapeId);
+                        } else {
+                            console.warn(`ShapeIDが見つかりません: TripID=${rawTripId}`);
+                        }
+                    }
                 });
 
                     busMarkers[vehicleId] = marker;
