@@ -34,10 +34,13 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
         try {
             const res = await fetch(`${company.staticPath}shapes.txt`);
             if (!res.ok) throw new Error("shapes.txt not found");
-            const text = await res.text();
+            const text = (await res.text()).replace(/^\uFEFF/, '');
             const lines = text.trim().split(/\r?\n/);
             
-            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            // const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+            const head = lines[0]
+                .split(',')
+                .map(s => s.trim().replace(/^"|"$/g, ''));
             const sIdIdx = head.indexOf('shape_id');
             const latIdx = head.indexOf('shape_pt_lat');
             const lonIdx = head.indexOf('shape_pt_lon');
