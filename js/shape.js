@@ -46,6 +46,12 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
             const lonIdx = head.indexOf('shape_pt_lon');
             const seqIdx = head.indexOf('shape_pt_sequence');
 
+            console.log("head:", head);
+            console.log("sIdIdx:", sIdIdx);
+            console.log("latIdx:", latIdx);
+            console.log("lonIdx:", lonIdx);
+            console.log("seqIdx:", seqIdx);
+
             let points =[];
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',');
@@ -57,6 +63,7 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
                             JSON.stringify(currentShapeId),
                             JSON.stringify(shapeId)
                         );
+                        console.log("cols:", cols);
                     }
                     if (currentShapeId === shapeId) {
                         points.push({
@@ -65,6 +72,7 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
                             seq: parseInt(cols[seqIdx] || 0)
                         });
                     }
+                    console.log("points length:", points.length);
                 }
             }
 
