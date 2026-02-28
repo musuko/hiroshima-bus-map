@@ -46,12 +46,6 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
             const lonIdx = head.indexOf('shape_pt_lon');
             const seqIdx = head.indexOf('shape_pt_sequence');
 
-            console.log("head:", head);
-            console.log("sIdIdx:", sIdIdx);
-            console.log("latIdx:", latIdx);
-            console.log("lonIdx:", lonIdx);
-            console.log("seqIdx:", seqIdx);
-
             let points =[];
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',');
