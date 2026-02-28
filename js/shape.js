@@ -83,7 +83,9 @@ window.ShapeManager.drawShape = async function(companyId, shapeId) {
             color: routeColor,
             weight: 5,
             opacity: 0.7,
-            lineJoin: 'round'
+            lineJoin: 'round',
+            pane: "routePane",
+            interactive: false
         }).addTo(window.map);
     }
 };
