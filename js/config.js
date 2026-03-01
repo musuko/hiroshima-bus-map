@@ -32,19 +32,19 @@ window.APP_CONFIG = {
     },
     // バス会社ごとのデザイン設定（共通バス停 shared を含む）
     COMPANIES: {
-        hiroden: { color: '#ADFF2F', textColor: '#008000' },
-        hirobus: { color: '#FF0000', textColor: '#e60012' },
-        hiroko: { color: '#eb9b6f', textColor: '#eb9b6f' },
-        geiyo: { color: '#33ccff', textColor: '#33ccff' },
-        bihoku: { color: '#191970', textColor: '#191970' },
-        jrchugokubus: { color: '#000080', textColor: '#000080' },
-        bonbus: { color: '#2e8b57', textColor: '#228b22' },
+        hiroden: { color: '#008000', textColor: '#008000' },
+        hirobus: { color: '#FF0000', textColor: '#FF0000' },
+        hiroko: { color: '#e67f12', textColor: '#e67f12' },
+        geiyo: { color: '#ff834d', textColor: '#ff834d' },
+        bihoku: { color: '#0000FF', textColor: '#0000FF' },
+        jrchugokubus: { color: '#0072ba', textColor: '#0072ba' },
+        bonbus: { color: '#008000', textColor: '#008000' },
         forble: { color: '#dc143c', textColor: '#dc143c' },
         ohnoheart: { color: '#4169e1', textColor: '#4169e1' },
-        kure_seikatsu: { color: '#ADFF2F', textColor: '#008000' },
+        kure_seikatsu: { color: '#83ff4d', textColor: '#83ff4d' },
         hatsukaichi_jishu: { color: '#ff00ff', textColor: '#ff00ff' },
-        ato: { color: '#fffafa', textColor: '#000000' },
-        onomichi: { color: '#7fffd4', textColor: '#7fffd4' },
+        ato: { color: '#3c3eca', textColor: '#3c3eca' },
+        onomichi: { color: '#128E49', textColor: '#128E49' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
 };
