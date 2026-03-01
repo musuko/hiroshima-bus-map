@@ -32,7 +32,7 @@ window.APP_CONFIG = {
     },
     // バス会社ごとのデザイン設定（共通バス停 shared を含む）
     COMPANIES: {
-        hiroden: { color: '#008000', textColor: '#008000' },
+        hiroden: { color: '#7E7F4C', textColor: '#7E7F4C' },
         hirobus: { color: '#FF0000', textColor: '#FF0000' },
         hiroko: { color: '#e67f12', textColor: '#e67f12' },
         geiyo: { color: '#ff834d', textColor: '#ff834d' },
