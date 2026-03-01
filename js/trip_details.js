@@ -6,13 +6,6 @@ async function getFullTimetableForTrip(tripId, companyId) {
     const company = window.BUS_COMPANIES.find(c => c.id === companyId);
     if (!company) return[];
 
-    let container = null;
-    for (let i = 0; i < 10; i++) {
-        container = document.querySelector('.leaflet-popup-content');
-        if (container) break;
-        await new Promise(resolve => setTimeout(resolve, 50));
-    }
-
     const tripStops =[];
     let tIdx = -1, sIdx = -1, aIdx = -1, sqIdx = -1;
 
@@ -58,36 +51,18 @@ async function getFullTimetableForTrip(tripId, companyId) {
 
     try {
         // 【パターン1】まずは分割されていない通常の stop_times.txt を探す
-        const res = await fetch(`${company.staticPath}stop_times.txt`);
+        const texts = await window.loadGtfsTextFiles(company, "stop_times");
         
-        if (res.ok) {
-            const text = await res.text();
-            processText(text, true);
-        } else {
-            // 【パターン2】404エラーの場合、分割ファイル(stop_times_1.txt, stop_times_2.txt...)を順番に探す
-            let fileIndex = 1;
-            while (true) {
-                const splitRes = await fetch(`${company.staticPath}stop_times_${fileIndex}.txt`);
-                
-                // 404になったら（ファイルがもう無ければ）ループを終了する
-                if (!splitRes.ok) {
-                    break;
-                }
-                
-                const text = await splitRes.text();
-                processText(text, fileIndex === 1);
-                
-                // 次のファイルへ
-                fileIndex++;
-            }
-        }
+        texts.forEach((text, index) => {
+            processText(text, index === 0);
+        });
 
         // 順番通りに並び替えて返す
         return tripStops.sort((a, b) => a.sequence - b.sequence);
 
     } catch (e) {
         // 通信エラーなどの場合
-        console.error("fetch error:", e);
+        console.error("stop_times processing error:", e);
         return[]; // ← ここで空の配列を返す
     }
 }

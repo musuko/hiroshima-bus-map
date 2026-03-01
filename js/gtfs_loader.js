@@ -35,12 +35,51 @@ window.LoadingManager = {
     }
   }
 };
+
+// 汎用ファイルローダー作る
+async function loadGtfsTextFiles(company, baseFileName) {
+    const texts = [];
+
+    try {
+        // パターン1：通常ファイル
+        const res = await fetch(`${company.staticPath}${baseFileName}.txt`);
+
+        if (res.ok) {
+            texts.push(await res.text());
+            return texts;
+        }
+
+        // パターン2：分割ファイル
+        let fileIndex = 1;
+
+        while (true) {
+            const splitRes = await fetch(
+                `${company.staticPath}${baseFileName}_${fileIndex}.txt`
+            );
+
+            if (!splitRes.ok) break;
+
+            texts.push(await splitRes.text());
+            fileIndex++;
+        }
+
+        return texts;
+
+    } catch (e) {
+        console.error(`${baseFileName} load error:`, e);
+        return [];
+    }
+}
+
+// グローバル登録
+window.loadGtfsTextFiles = loadGtfsTextFiles;
+
 // ★1つの会社のデータだけを読み込む関数
 window.loadCompanyGtfsData = async function(company) {
     if (company.isGtfsLoaded) return; // 既にロード済みならスキップ
-
     console.log(`🚀 ${company.name} のGTFSデータを読み込み中...`);
-    
+}
+
     // --- A. stops.txt の読み込み ---
     try {
         const res = await fetch(`${company.staticPath}stops.txt`);
