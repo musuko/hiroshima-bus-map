@@ -69,7 +69,7 @@ async function loadGtfsTextFiles(company, baseFileName) {
         console.error(`${baseFileName} load error:`, e);
         return [];
     }
-}
+};
 
 // グローバル登録
 window.loadGtfsTextFiles = loadGtfsTextFiles;
@@ -78,7 +78,6 @@ window.loadGtfsTextFiles = loadGtfsTextFiles;
 window.loadCompanyGtfsData = async function(company) {
     if (company.isGtfsLoaded) return; // 既にロード済みならスキップ
     console.log(`🚀 ${company.name} のGTFSデータを読み込み中...`);
-}
 
     // --- A. stops.txt の読み込み ---
     try {
