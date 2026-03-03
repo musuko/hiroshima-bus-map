@@ -55,6 +55,8 @@ window.renderStops = function() {
         marker.on("click", () => {
             if (window.showTimetableForStop) {
                 window.showTimetableForStop(stopId);
+            } else {
+                console.warn("showTimetableForStop が存在しません");
             }
         });
 
