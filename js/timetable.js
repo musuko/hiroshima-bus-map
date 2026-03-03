@@ -122,3 +122,21 @@ window.TimetableManager = {
         container.innerHTML = html;
     }
 };
+
+    // バス停クリック用エントリーポイント
+window.showTimetableForStop = function(stopId) {
+    const stopData = window.stopLookup[stopId];
+    if (!stopData) {
+        console.warn("stopDataが見つかりません:", stopId);
+        return;
+    }
+
+    const companyIds = stopData.companies || [];
+
+    if (companyIds.length === 0) {
+        console.warn("会社情報なし:", stopId);
+        return;
+    }
+
+    window.TimetableManager.showTimetable(stopId, companyIds);
+};
