@@ -79,44 +79,41 @@ window.loadCompanyGtfsData = async function(company) {
     if (company.isGtfsLoaded) return; // 既にロード済みならスキップ
     console.log(`🚀 ${company.name} のGTFSデータを読み込み中...`);
 
-// --- A. stops.txt の読み込み ---
-try {
-    const res = await fetch(`${company.staticPath}stops.txt`);
-    if (res.ok) {
-        const text = await res.text();
-        const lines = text.trim().split(/\r?\n/);
+    // --- A. stops.txt の読み込み ---
+    try {
+        const res = await fetch(`${company.staticPath}stops.txt`);
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.trim().split(/\r?\n/);
 
-        const head = lines[0]
-            .split(',')
-            .map(s => s.trim().replace(/^"|"$/g, ''));
-
-        const sIdIdx = head.indexOf('stop_id');
-        const sNameIdx = head.indexOf('stop_name');
-        const latIdx = head.indexOf('stop_lat');
-        const lonIdx = head.indexOf('stop_lon');
-
-        if (latIdx === -1 || lonIdx === -1) {
-            console.error("stop_lat / stop_lon 列が見つかりません");
-            return;
-        }
-
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-
-            const cols = lines[i]
+            const head = lines[0]
                 .split(',')
                 .map(s => s.trim().replace(/^"|"$/g, ''));
 
-            if (cols.length > sIdIdx && cols[sIdIdx]) {
+            const sIdIdx = head.indexOf('stop_id');
+            const sNameIdx = head.indexOf('stop_name');
+            const latIdx = head.indexOf('stop_lat');
+            const lonIdx = head.indexOf('stop_lon');
+
+            if (sIdIdx === -1 || latIdx === -1 || lonIdx === -1) {
+                console.error("必要な列が見つかりません");
+                return;
+            }
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+
+                const cols = lines[i]
+                    .split(',')
+                    .map(s => s.trim().replace(/^"|"$/g, ''));
+
+                if (!cols[sIdIdx]) continue;
 
                 const stopId = cols[sIdIdx].trim();
                 const stopName = cols[sNameIdx] || "名称不明";
                 const stopLat = parseFloat(cols[latIdx]);
                 const stopLon = parseFloat(cols[lonIdx]);
 
-                if (stopData.lat == null || stopData.lon == null) return;
-
-                // まだ登録されていない場合
                 if (!window.stopLookup[stopId]) {
                     window.stopLookup[stopId] = {
                         name: stopName,
@@ -125,21 +122,20 @@ try {
                         companies: [company.id]
                     };
                 } else {
-                        const existing = window.stopLookup[stopId];
+                    const existing = window.stopLookup[stopId];
 
-                        if (existing.lat == null) existing.lat = stopLat;
-                        if (existing.lon == null) existing.lon = stopLon;
-                    // 既に存在する場合（会社衝突）
-                    if (!window.stopLookup[stopId].companies.includes(company.id)) {
-                        window.stopLookup[stopId].companies.push(company.id);
+                    if (existing.lat == null) existing.lat = stopLat;
+                    if (existing.lon == null) existing.lon = stopLon;
+
+                    if (!existing.companies.includes(company.id)) {
+                        existing.companies.push(company.id);
                     }
                 }
             }
         }
+    } catch (e) {
+        console.error(`${company.name} stops.txt 読込失敗:`, e);
     }
-} catch (e) {
-    console.error(`${company.name} stops.txt 読込失敗:`, e);
-}
 
     // --- B. routes.txt の読み込み ---
     try {

@@ -19,8 +19,8 @@ window.renderStops = function() {
     const STOP_WEIGHT = window.APP_CONFIG.MAP.STOP_WEIGHT;
 
     Object.entries(window.stopLookup).forEach(([stopId, stopData]) => {
- // 緯度経度がない場合は描画しない
-        if (!stopData.lat || !stopData.lon) return;
+        // 緯度経度がない場合は描画しない
+        if (stopData.lat == null || stopData.lon == null) return;
 
         const companies = stopData.companies || [];
 
