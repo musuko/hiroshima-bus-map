@@ -79,25 +79,50 @@ window.loadCompanyGtfsData = async function(company) {
     if (company.isGtfsLoaded) return; // 既にロード済みならスキップ
     console.log(`🚀 ${company.name} のGTFSデータを読み込み中...`);
 
-    // --- A. stops.txt の読み込み ---
-    try {
-        const res = await fetch(`${company.staticPath}stops.txt`);
-        if (res.ok) {
-            const text = await res.text();
-            const lines = text.trim().split(/\r?\n/);
-            const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-            const sIdIdx = head.indexOf('stop_id');
-            const sNameIdx = head.indexOf('stop_name');
+// --- A. stops.txt の読み込み ---
+try {
+    const res = await fetch(`${company.staticPath}stops.txt`);
+    if (res.ok) {
+        const text = await res.text();
+        const lines = text.trim().split(/\r?\n/);
 
-            for (let i = 1; i < lines.length; i++) {
-                const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                if (cols.length > sIdIdx && cols[sIdIdx]) {
-                    const stopId = cols[sIdIdx].trim();
-                    window.stopLookup[stopId] = { name: cols[sNameIdx] || "名称不明" };
+        const head = lines[0]
+            .split(',')
+            .map(s => s.trim().replace(/^"|"$/g, ''));
+
+        const sIdIdx = head.indexOf('stop_id');
+        const sNameIdx = head.indexOf('stop_name');
+
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+
+            const cols = lines[i]
+                .split(',')
+                .map(s => s.trim().replace(/^"|"$/g, ''));
+
+            if (cols.length > sIdIdx && cols[sIdIdx]) {
+
+                const stopId = cols[sIdIdx].trim();
+                const stopName = cols[sNameIdx] || "名称不明";
+
+                // まだ登録されていない場合
+                if (!window.stopLookup[stopId]) {
+                    window.stopLookup[stopId] = {
+                        name: stopName,
+                        companies: [company.id]
+                    };
+                } else {
+                    // 既に存在する場合（会社衝突）
+                    if (!window.stopLookup[stopId].companies.includes(company.id)) {
+                        window.stopLookup[stopId].companies.push(company.id);
+                    }
                 }
             }
         }
-    } catch (e) { console.error(`${company.name} stops.txt 読込失敗:`, e); }
+    }
+} catch (e) {
+    console.error(`${company.name} stops.txt 読込失敗:`, e);
+}
 
     // --- B. routes.txt の読み込み ---
     try {
