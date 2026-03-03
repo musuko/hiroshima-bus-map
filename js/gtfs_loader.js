@@ -203,6 +203,11 @@ window.prepareAllGtfsData = async function() {
     window.isGtfsReady = true;
     console.log("🏁 初期のGTFSデータロードが完了しました");
 
+        // バス停表示を呼び出し
+    if (window.renderStops) {
+      window.renderStops();
+    }
+
   } finally {
     LoadingManager.end();
   }
