@@ -92,6 +92,13 @@ try {
 
         const sIdIdx = head.indexOf('stop_id');
         const sNameIdx = head.indexOf('stop_name');
+        const latIdx = head.indexOf('stop_lat');
+        const lonIdx = head.indexOf('stop_lon');
+
+        if (latIdx === -1 || lonIdx === -1) {
+            console.error("stop_lat / stop_lon 列が見つかりません");
+            return;
+        }
 
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
@@ -104,14 +111,24 @@ try {
 
                 const stopId = cols[sIdIdx].trim();
                 const stopName = cols[sNameIdx] || "名称不明";
+                const stopLat = parseFloat(cols[latIdx]);
+                const stopLon = parseFloat(cols[lonIdx]);
+
+                if (stopData.lat == null || stopData.lon == null) return;
 
                 // まだ登録されていない場合
                 if (!window.stopLookup[stopId]) {
                     window.stopLookup[stopId] = {
                         name: stopName,
+                        lat: stopLat,
+                        lon: stopLon,
                         companies: [company.id]
                     };
                 } else {
+                        const existing = window.stopLookup[stopId];
+
+                        if (existing.lat == null) existing.lat = stopLat;
+                        if (existing.lon == null) existing.lon = stopLon;
                     // 既に存在する場合（会社衝突）
                     if (!window.stopLookup[stopId].companies.includes(company.id)) {
                         window.stopLookup[stopId].companies.push(company.id);
