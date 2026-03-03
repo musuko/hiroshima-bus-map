@@ -183,8 +183,11 @@ window.addEventListener('load', async () => {
     } catch (e) { console.error("現在地エラー:", e); }
 
     // 3. データ読み込み
-    if (typeof window.prepareGtfsData === 'function') {
-        await window.prepareGtfsData();
+    if (typeof window.prepareAllGtfsData === 'function') {
+        await window.prepareAllGtfsData();
+        if (typeof window.renderStops === 'function') {
+            window.renderStops();
+        }
     }
 
     // 4. バス更新
