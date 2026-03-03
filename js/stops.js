@@ -4,8 +4,8 @@
  */
 
 window.globalStopMap = window.globalStopMap || L.layerGroup();
-
 window.renderStops = function() {
+    console.log("📍 renderStops 実行");
 
     if (!window.map) {
         console.warn("⚠ map が未初期化です");
