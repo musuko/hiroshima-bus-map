@@ -63,8 +63,8 @@ window.renderStops = function() {
         // marker.bindTooltip(stopData.name, {
         //     direction: "top",
         //     offset: [0, -5]
-        // }
-    );
+        // });
+    
 
         window.globalStopMap.addLayer(marker);
     });
