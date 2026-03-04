@@ -55,10 +55,10 @@ window.renderStops = function() {
         marker.on("click", () => {
             if (window.showTimetableForStop) {
                 window.showTimetableForStop(stopId);
-                console.log("stopId", stopId);
             } else {
                 console.warn("showTimetableForStop が存在しません");
             }
+            console.log("stopId", stopId);
         });
 
         // marker.bindTooltip(stopData.name, {
