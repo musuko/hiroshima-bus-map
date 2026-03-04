@@ -40,16 +40,16 @@ window.renderStops = function() {
         }
 
         // ===== バス停描画 =====
-        const marker = L.circleMarker(
-            [parseFloat(stopData.lat), parseFloat(stopData.lon)],
-            {
-                radius: STOP_RADIUS,
-                color: color,
-                weight: 1,
-                fillColor: color,
-                fillOpacity: 0.1
-            }
-        );
+        // const marker = L.circleMarker(
+        //     [parseFloat(stopData.lat), parseFloat(stopData.lon)],
+        //     {
+        //         radius: STOP_RADIUS,
+        //         color: color,
+        //         weight: 1,
+        //         fillColor: color,
+        //         fillOpacity: 0.1
+        //     }
+        // );
         console.log("バス停");
 
         // ===== クリック時：時刻表表示 =====
