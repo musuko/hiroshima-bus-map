@@ -71,7 +71,7 @@ window.renderStops = function() {
         // window.globalStopMap.addLayer(marker);
     });
 
-    window.globalStopMap.addTo(window.map);
+    // window.globalStopMap.addTo(window.map);
 
     console.log("🚌 バス停描画完了");
 };
