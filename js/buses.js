@@ -89,10 +89,10 @@ async function updateBusPositions() {
                     }
                     const globalTripKey = `${company.id}_${rawTripId}`;
                     const shapeId = window.tripToShapeLookup[globalTripKey];
-                    
-                    if (shapeId && window.ShapeManager) {
-                        window.ShapeManager.drawShape(company.id, shapeId);
-                    }
+                    // 下でも使用しているので、重複していると思う
+                    // if (shapeId && window.ShapeManager) {
+                    //     window.ShapeManager.drawShape(company.id, shapeId);
+                    // }
                 
                     await new Promise(r => setTimeout(r, 200));
                     const popupDiv = document.getElementById(`popup-${vehicleId}`);
