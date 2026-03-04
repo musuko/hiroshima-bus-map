@@ -186,7 +186,7 @@ window.addEventListener('load', async () => {
     if (typeof window.prepareAllGtfsData === 'function') {
         await window.prepareAllGtfsData();
         if (typeof window.renderStops === 'function') {
-            // window.renderStops();
+            window.renderStops();
         }
     }
 
