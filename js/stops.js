@@ -51,6 +51,7 @@ window.renderStops = function() {
             }
         );
 
+        console.log("バス停をクリックするよ");
         // ===== クリック時：時刻表表示 =====
         marker.on("click", () => {
             if (window.showTimetableForStop) {
