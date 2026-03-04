@@ -8,6 +8,7 @@ window.TimetableManager = {
         const safeId = String(stopId).replace(/\s+/g, '_');
         const container = document.querySelector(`.timetable-content-${safeId}`);
         console.log(`safeIdは、${safeId}`);
+        console.log(`companyIdsは、${companyIds}`);
         if (!container) return;
         
         container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
