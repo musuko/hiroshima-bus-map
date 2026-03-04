@@ -47,11 +47,11 @@ window.renderStops = function() {
                 color: color,
                 weight: 1,
                 fillColor: color,
-                fillOpacity: 0.9
+                fillOpacity: 0.1
             }
         );
+        console.log("バス停");
 
-        console.log("バス停をクリックするよ");
         // ===== クリック時：時刻表表示 =====
         marker.on("click", () => {
             if (window.showTimetableForStop) {
