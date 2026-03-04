@@ -47,10 +47,9 @@ window.renderStops = function() {
                 color: color,
                 weight: 1,
                 fillColor: color,
-                fillOpacity: 0.1
+                fillOpacity: 0.8
             }
         );
-        console.log("バス停");
 
         // ===== クリック時：時刻表表示 =====
         marker.on("click", () => {
@@ -59,7 +58,6 @@ window.renderStops = function() {
             } else {
                 console.warn("showTimetableForStop が存在しません");
             }
-            console.log("stopId", stopId);
         });
 
         marker.bindTooltip(stopData.name, {
