@@ -7,7 +7,7 @@ window.TimetableManager = {
     async showTimetable(stopId, companyIds) {
         const safeId = String(stopId).replace(/\s+/g, '_');
         const container = document.querySelector(`.timetable-content-${safeId}`);
-        console.log("showTimetableまできましｔ");
+        console.log(`showTimetableまできました${!container}`);
         if (!container) return;
 
         container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
