@@ -7,17 +7,17 @@ window.TimetableManager = {
     async showTimetable(stopId, companyIds) {
         const safeId = String(stopId).replace(/\s+/g, '_');
         const container = document.querySelector(`.timetable-content-${safeId}`);
-        console.log(`showTimetableまできました${!container}`);
+        console.log(`safeIdは、${safeId}`);
         if (!container) return;
-
+        
         container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
-
+        
         let combinedTimes = [];
-
+        
         for (const companyId of companyIds) {
             const company = window.BUS_COMPANIES.find(c => c.id === companyId);
             if (!company) continue;
-
+            
             try {
                 // 【追跡ログ1】カレンダー判定
                 const activeServiceIds = await window.CalendarManager.getActiveServiceIds(company);
