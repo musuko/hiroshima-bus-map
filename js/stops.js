@@ -5,8 +5,8 @@
 
 window.globalStopMap = window.globalStopMap || L.layerGroup();
 window.renderStops = function() {
-    console.log("stopLookup件数:", Object.keys(window.stopLookup).length);
-    console.log("サンプル:", Object.values(window.stopLookup)[0]);
+    // console.log("stopLookup件数:", Object.keys(window.stopLookup).length);
+    // console.log("サンプル:", Object.values(window.stopLookup)[0]);
 
     if (!window.map) {
         console.warn("⚠ map が未初期化です");
