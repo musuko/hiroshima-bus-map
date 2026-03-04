@@ -68,7 +68,7 @@ window.renderStops = function() {
         // });
     
 
-        window.globalStopMap.addLayer(marker);
+        // window.globalStopMap.addLayer(marker);
     });
 
     window.globalStopMap.addTo(window.map);
