@@ -44,10 +44,10 @@ window.renderStops = function() {
             [parseFloat(stopData.lat), parseFloat(stopData.lon)],
             {
                 radius: STOP_RADIUS,
-                color: `#ffffff00`,
-                fillColor: color,   // 
-                fillOpacity: 1,
-                weight: STOP_WEIGHT
+                color: `#ffffff00`, // 枠透明
+                fillColor: color,   // バス停色
+                fillOpacity: 1, // 不透明度
+                weight: STOP_WEIGHT // 枠の太さ
             }
         );
 
@@ -59,7 +59,7 @@ window.renderStops = function() {
                 console.warn("showTimetableForStop が存在しません");
             }
         });
-
+        // ===== ツールチップ =====
         marker.bindTooltip(stopData.name, {
             direction: "top",
             offset: [0, -5]

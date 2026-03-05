@@ -6,13 +6,12 @@
 window.TimetableManager = {
     async showTimetable(stopId, companyIds) {
         const safeId = String(stopId).replace(/\s+/g, '_');
-        const container = document.querySelector(`.timetable-content-${safeId}`);
-        console.log(`containerは、${container}`);
-        if (!container) return;
-        console.log(`safeIdは、${safeId}`);
-        console.log(`companyIdsは、${companyIds}`);
+        // const container = document.querySelector(`.timetable-content-${safeId}`);
+
+        // if (!container) return;
         
-        container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
+        safeId.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
+        // container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
         
         let combinedTimes = [];
         
@@ -87,11 +86,12 @@ window.TimetableManager = {
     },
 
     _renderCombinedTimetable(safeId, times) {
-        const container = document.querySelector(`.timetable-content-${safeId}`);
-        if (!container) return;
+        // const container = document.querySelector(`.timetable-content-${safeId}`);
+        // if (!container) return;
 
         if (times.length === 0) {
-            container.innerHTML = "<p style='padding:10px; font-size:12px; color:#666;'>本日の運行予定はありません。<br><small>(データ照合結果 0件)</small></p>";
+            safeId.innerHTML = "<p style='padding:10px; font-size:12px; color:#666;'>本日の運行予定はありません。<br><small>(データ照合結果 0件)</small></p>";
+            // container.innerHTML = "<p style='padding:10px; font-size:12px; color:#666;'>本日の運行予定はありません。<br><small>(データ照合結果 0件)</small></p>";
             return;
         }
 
@@ -122,7 +122,8 @@ window.TimetableManager = {
             </tr>`;
         });
         html += `</tbody></table></div>`;
-        container.innerHTML = html;
+        safeId.innerHTML = html;
+        // container.innerHTML = html;
     }
 };
 
