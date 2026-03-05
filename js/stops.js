@@ -44,10 +44,10 @@ window.renderStops = function() {
             [parseFloat(stopData.lat), parseFloat(stopData.lon)],
             {
                 radius: STOP_RADIUS,
-                color: color,   // 枠線の色
+                color: `#ffffff00`,
+                fillcolor: color,   // 
                 fillOpacity: 1,
-                weight: STOP_WEIGHT,
-                color: 'transparent',   // 塗りつぶしの色
+                weight: STOP_WEIGHT
             }
         );
 
