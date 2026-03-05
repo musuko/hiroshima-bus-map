@@ -73,6 +73,9 @@ window.BUS_COMPANIES =[
         name: '広島バス',
         staticPath: './info/hirobus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -81,6 +84,9 @@ window.BUS_COMPANIES =[
         name: '広島交通',
         staticPath: './info/hiroko/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=10`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -89,6 +95,9 @@ window.BUS_COMPANIES =[
         name: '芸陽バス',
         staticPath: './info/geiyo/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=11`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -97,6 +106,9 @@ window.BUS_COMPANIES =[
         name: '備北バス',
         staticPath: './info/bihoku/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=12`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -105,6 +117,9 @@ window.BUS_COMPANIES =[
         name: 'JRバス',
         staticPath: './info/jrchugokubus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=15`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -113,6 +128,9 @@ window.BUS_COMPANIES =[
         name: 'ボンバス',
         staticPath: './info/bonbus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=13`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -121,6 +139,9 @@ window.BUS_COMPANIES =[
         name: 'フォーブル',
         staticPath: './info/forble/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=14`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -129,6 +150,9 @@ window.BUS_COMPANIES =[
         name: 'おおのハートバス',
         staticPath: './info/ohnoheart/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=17`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -137,6 +161,9 @@ window.BUS_COMPANIES =[
         name: '呉生活バス',
         staticPath: './info/kure_seikatsu/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=18`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -145,6 +172,9 @@ window.BUS_COMPANIES =[
         name: '廿日市自主運行バス',
         staticPath: './info/hatsukaichi_jishu/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=19`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,    
         active: true,
         visible: true   // ★追加
     },
@@ -153,6 +183,9 @@ window.BUS_COMPANIES =[
         name: '朝日交通',
         staticPath: './info/ato/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=54`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -161,6 +194,9 @@ window.BUS_COMPANIES =[
         name: 'おのみちバス',
         staticPath: './info/onomichi/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=53`,
+        tripUpdate: `trip_updates`,
+        vehiclePosition: `vehicle_position`,
+        alert: `alerts`,
         active: true,
         visible: true   // ★追加
     },
@@ -168,7 +204,10 @@ window.BUS_COMPANIES =[
         id: 'etajima',
         name: '江田島バス',
         staticPath: `${window.GTFS_DOMAINS.BUSIT}etajimabus/`,
-        realtimeUrl: "https://gtfs-rt.busit.jp/api/Etajimabus/TripUpdates",
+        realtimeUrl: "https://gtfs-rt.busit.jp/api/Etajimabus/",
+        tripUpdate: `tripUpdates`,
+        vehiclePosition: null,
+        alert: null,
         active: false,
         visible: false
     },
@@ -176,7 +215,10 @@ window.BUS_COMPANIES =[
         id: 'chugokubus_ext',
         name: '中国バス',
         staticPath: `${window.GTFS_DOMAINS.BUSVISION}chugokubus/gtfsFeed/`,
-        realtimeUrl: null,
+        realtimeUrl: "https://bus-vision.jp/realtime/",
+        tripUpdate: `chugokubus_trip_update_v2`,
+        vehiclePosition: `chugokubus_vpos_update_v2`,
+        alert: `chugokubus_alrt_update_v2`,
         active: false,
         visible: false
     },
@@ -184,7 +226,10 @@ window.BUS_COMPANIES =[
         id: 'tomotetsu',
         name: '鞆鉄道',
         staticPath: `${window.GTFS_DOMAINS.BUSVISION}tomotetsubus/gtfsFeed/`,
-        realtimeUrl: null,
+        realtimeUrl: "https://bus-vision.jp/realtime/",
+        tripUpdate: `tomotetsubus_trip_update_v2`,
+        vehiclePosition: `tomotetsubus_vpos_update_v2`,
+        alert: `tomotetsubus_alrt_update_v2`,
         active: false,
         visible: false
     },
@@ -192,7 +237,10 @@ window.BUS_COMPANIES =[
         id: 'ikasa',
         name: '井笠バス',
         staticPath: `${window.GTFS_DOMAINS.BUSVISION}ikasabus/gtfsFeed/`,
-        realtimeUrl: null,
+        realtimeUrl: "https://bus-vision.jp/realtime/",
+        tripUpdate: `ikasabus_trip_update_v2`,
+        vehiclePosition: `ikasabus_vpos_update_v2`,
+        alert: `ikasabus_alrt_update_v2`,
         active: false,
         visible: false
     }
