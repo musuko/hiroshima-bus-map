@@ -45,7 +45,7 @@ window.renderStops = function() {
             {
                 radius: STOP_RADIUS,
                 color: `#ffffff00`,
-                fillcolor: color,   // 
+                fillColor: color,   // 
                 fillOpacity: 1,
                 weight: STOP_WEIGHT
             }
