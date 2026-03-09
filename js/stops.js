@@ -16,12 +16,12 @@ window.renderStops = function() {
     window.globalStopMap.clearLayers();
 
     const STOP_RADIUS = window.APP_CONFIG.MAP.STOP_RADIUS;
-    const STOP_WEIGHT = window.APP_CONFIG.MAP.STOP_WEIGHT;
+    const STOP_WEIGHT = window.APP_CONFIG.MAP.STOP_WEIGHT;  // 枠の太さ
 
     Object.entries(window.stopLookup).forEach(([stopId, stopData]) => {
         // 緯度経度がない場合は描画しない
         if (stopData.lat == null || stopData.lon == null) return;
-
+        console.log(`stopDataは, ${JSON.stringify(stopData)}`);//////////////
         const companies = stopData.companies || [];
 
         // ===== 色の決定 =====
