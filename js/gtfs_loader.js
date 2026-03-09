@@ -115,6 +115,7 @@ window.loadCompanyGtfsData = async function(company) {
                 const stopLon = parseFloat(cols[lonIdx]);
 
                 if (!window.stopLookup[stopId]) {
+                    // stopLookupの定義。stopIdをキーに、stop_name, stop_lat, stop_lon, companiesの配列を保存
                     window.stopLookup[stopId] = {
                         name: stopName,
                         lat: stopLat,
@@ -129,6 +130,7 @@ window.loadCompanyGtfsData = async function(company) {
 
                     if (!existing.companies.includes(company.id)) {
                         existing.companies.push(company.id);
+                        console.log("pushされたexisting.companiesは", existing.companies);//////////////
                     }
                 }
             }
