@@ -113,7 +113,7 @@ window.loadCompanyGtfsData = async function(company) {
                 const stopName = cols[sNameIdx] || "名称不明";
                 const stopLat = parseFloat(cols[latIdx]);
                 const stopLon = parseFloat(cols[lonIdx]);
-
+                // stopLookup[stopId]が存在しない場合
                 if (!window.stopLookup[stopId]) {
                     // stopLookupの定義。stopIdをキーに、stop_name, stop_lat, stop_lon, companiesの配列を保存
                     window.stopLookup[stopId] = {
@@ -122,16 +122,22 @@ window.loadCompanyGtfsData = async function(company) {
                         lon: stopLon,
                         companies: [company.id]
                     };
+                    // stopLookup[stopId]が存在する場合
                 } else {
                     const existing = window.stopLookup[stopId];
 
-                    if (existing.lat == null) existing.lat = stopLat;
-                    if (existing.lon == null) existing.lon = stopLon;
+                    // if (existing.lat == null) existing.lat = stopLat;
+                    // if (existing.lon == null) existing.lon = stopLon;
 
-                    if (!existing.companies.includes(company.id)) {
+                    // 緯度経度が同じなら会社IDだけ追加（異なる場合は同一IDの別バス停の可能性があるので追加しない）
+                    if (stopLat === windows.stopLookup[stopId].lat && stopLon === windows.stopLookup[stopId].lon) {
                         existing.companies.push(company.id);
-                        console.log("pushされたexisting.companiesは", existing.companies);//////////////
+                        console.log("pushされたexisting.companiesは", existing.companies);
                     }
+                    // if (!existing.companies.includes(company.id)) {
+                    //     existing.companies.push(company.id);
+                    //     console.log("pushされたexisting.companiesは", existing.companies);//////////////
+                    // }
                 }
             }
         }
