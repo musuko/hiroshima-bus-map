@@ -130,10 +130,10 @@ window.loadCompanyGtfsData = async function(company) {
                     if (existing.lon == null) existing.lon = stopLon;
                     console.log("stopLat", stopLat);
                     console.log("existing.lat", existing.lat);
-                    console.log("windlows.stopLookup[stopId].lat", windows.stopLookup[stopId].lat);
+                    console.log("window.stopLookup[stopId].lat", window.stopLookup[stopId].lat);
 
                     // 緯度経度が同じなら会社IDだけ追加（異なる場合は同一IDの別バス停の可能性があるので追加しない）
-                    if (stopLat === windows.stopLookup[stopId].lat && stopLon === windows.stopLookup[stopId].lon) {
+                    if (stopLat === window.stopLookup[stopId].lat && stopLon === window.stopLookup[stopId].lon) {
                         existing.companies.push(company.id);
                         console.log("pushされたexisting.companiesは", existing.companies);
                     }
