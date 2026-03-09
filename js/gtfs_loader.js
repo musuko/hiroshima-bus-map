@@ -126,8 +126,8 @@ window.loadCompanyGtfsData = async function(company) {
                 } else {
                     const existing = window.stopLookup[stopId];
 
-                    // if (existing.lat == null) existing.lat = stopLat;
-                    // if (existing.lon == null) existing.lon = stopLon;
+                    if (existing.lat == null) existing.lat = stopLat;
+                    if (existing.lon == null) existing.lon = stopLon;
 
                     // 緯度経度が同じなら会社IDだけ追加（異なる場合は同一IDの別バス停の可能性があるので追加しない）
                     if (stopLat === windows.stopLookup[stopId].lat && stopLon === windows.stopLookup[stopId].lon) {
