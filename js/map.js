@@ -4,7 +4,9 @@
 const map = L.map('map',{
   maxZoom: 21 // 地図として許容する最大ズーム
 }).setView([34.3976, 132.4754], 12);
+// 「標準のブラウザ環境（Window型）には map という名前のプロパティは定義されていないよ」と親切に注意
 window.map = map;
+
 // Leafletの Pane（レイヤー階層） という仕組み
 map.createPane("routePane");
 map.getPane("routePane").style.zIndex = 650;
