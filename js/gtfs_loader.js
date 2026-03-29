@@ -145,12 +145,6 @@ window.loadCompanyGtfsData = async function (company) {
           // }
         }
       }
-      console.log("stopLat", stopLat);
-      console.log("existing.lat", existing.lat);
-      console.log(
-        "window.stopLookup[stopId].lat",
-        window.stopLookup[stopId].lat,
-      );
     }
   } catch (e) {
     console.error(`${company.name} stops.txt 読込失敗:`, e);
