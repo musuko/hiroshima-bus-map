@@ -145,6 +145,7 @@ window.loadCompanyGtfsData = async function (company) {
           // }
         }
         console.log(window.stopLookup[stopId]);
+        console.log(window.stopLookup[stopId].companies);
       }
     }
   } catch (e) {
