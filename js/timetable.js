@@ -60,7 +60,8 @@ window.TimetableManager = {
 
   async _getStopTimes(company, stopId, tripInfoMap) {
     const safeStopId = encodeURIComponent(stopId);
-    const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+    const apiUrl = `${window.API_BASE_URL}/api/get-all-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+    // const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
 
     try {
       const res = await fetch(apiUrl);
