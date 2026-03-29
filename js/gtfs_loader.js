@@ -98,7 +98,7 @@ window.loadCompanyGtfsData = async function (company) {
         console.error("必要な列が見つかりません");
         return;
       }
-
+      console.log("loadCompanyGtfsDataを読み込んでいます");
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
 
