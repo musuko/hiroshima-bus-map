@@ -1,7 +1,7 @@
-/**
- * js/timetable.js
- * 役割: 統合時刻表の表示とデータフローの追跡
- */
+// /**
+//  * js/timetable.js
+//  * 役割: 統合時刻表の表示とデータフローの追跡
+//  */
 
 window.TimetableManager = {
   async showTimetable(stopId, companyIds) {
@@ -114,27 +114,27 @@ window.TimetableManager = {
     let html = `<div style="max-height:${maxHeight}; overflow-y:auto;">`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;">`;
     html += `<thead style="position:sticky; top:0; background:#eee; z-index:1;">
-                    <tr style="text-align:left; border-bottom:2px solid #ccc;">
-                        <th style="padding:6px 4px;">時刻</th>
-                        <th style="padding:6px 4px;">系統</th>
-                        <th style="padding:6px 4px;">行先</th>
-                    </tr>
-                 </thead><tbody>`;
+                        <tr style="text-align:left; border-bottom:2px solid #ccc;">
+                            <th style="padding:6px 4px;">時刻</th>
+                            <th style="padding:6px 4px;">系統</th>
+                            <th style="padding:6px 4px;">行先</th>
+                        </tr>
+                    </thead><tbody>`;
 
     times.forEach((t) => {
       const config = window.APP_CONFIG.COMPANIES[t.companyId];
       const dotHtml = `<span style="display:inline-block; width:7px; height:7px; background:${config.color}; border-radius:50%; margin-right:3px; border:1px solid #999;"></span>`;
 
       html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:10px 4px; font-weight:bold; font-size:1.2em; vertical-align:middle;">${t.time}</td>
-                <td style="padding:10px 4px; vertical-align:middle;">
-                    <div style="font-size:9px; color:#666; white-space:nowrap;">${dotHtml}${t.companyName}</div>
-                    <div style="font-weight:bold; font-size:1.1em; color:#333;">${t.routeShort}</div>
-                </td>
-                <td style="padding:10px 4px; vertical-align:middle;">
-                    <div style="font-weight:bold; color:#000;">${t.destination} <span style="font-weight:normal; font-size:0.8em; color:#666;">行</span></div>
-                </td>
-            </tr>`;
+                        <td style="padding:10px 4px; font-weight:bold; font-size:1.2em; vertical-align:middle;">${t.time}</td>
+                        <td style="padding:10px 4px; vertical-align:middle;">
+                            <div style="font-size:9px; color:#666; white-space:nowrap;">${dotHtml}${t.companyName}</div>
+                            <div style="font-weight:bold; font-size:1.1em; color:#333;">${t.routeShort}</div>
+                        </td>
+                        <td style="padding:10px 4px; vertical-align:middle;">
+                            <div style="font-weight:bold; color:#000;">${t.destination} <span style="font-weight:normal; font-size:0.8em; color:#666;">行</span></div>
+                        </td>
+                    </tr>`;
     });
     html += `</tbody></table></div>`;
     safeId.innerHTML = html;
