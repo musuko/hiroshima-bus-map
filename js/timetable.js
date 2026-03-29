@@ -67,6 +67,7 @@ window.TimetableManager = {
       if (!res.ok) throw new Error(`APIエラー: ${res.status}`);
 
       const data = await res.json();
+      console.log(data);
       // 【重要：Vercelから何が届いているか生データを確認】
       console.log(`📡 API生データ (${company.id}):`, data.slice(0, 2));
 
