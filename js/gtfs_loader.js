@@ -144,6 +144,7 @@ window.loadCompanyGtfsData = async function (company) {
           //     console.log("pushされたexisting.companiesは", existing.companies);//////////////
           // }
         }
+        console.log("確認中");
       }
     }
   } catch (e) {
