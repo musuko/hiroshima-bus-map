@@ -138,14 +138,14 @@ window.loadCompanyGtfsData = async function (company) {
           ) {
             existing.companies.push(company.id);
             console.log("pushされたexisting.companiesは", existing.companies);
+            console.log(window.stopLookup[stopId]);
+            console.log(window.stopLookup[stopId].companies);
           }
           // if (!existing.companies.includes(company.id)) {
           //     existing.companies.push(company.id);
           //     console.log("pushされたexisting.companiesは", existing.companies);//////////////
           // }
         }
-        console.log(window.stopLookup[stopId]);
-        console.log(window.stopLookup[stopId].companies);
       }
     }
   } catch (e) {
