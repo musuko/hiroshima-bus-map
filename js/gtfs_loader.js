@@ -128,9 +128,9 @@ window.loadCompanyGtfsData = async function(company) {
 
                     if (existing.lat == null) existing.lat = stopLat;
                     if (existing.lon == null) existing.lon = stopLon;
-                    console.log("stopLat", stopLat);
-                    console.log("existing.lat", existing.lat);
-                    console.log("window.stopLookup[stopId].lat", window.stopLookup[stopId].lat);
+                    // console.log("stopLat", stopLat);
+                    // console.log("existing.lat", existing.lat);
+                    // console.log("window.stopLookup[stopId].lat", window.stopLookup[stopId].lat);
 
                     // 緯度経度が同じなら会社IDだけ追加（異なる場合は同一IDの別バス停の可能性があるので追加しない）
                     if (stopLat === window.stopLookup[stopId].lat && stopLon === window.stopLookup[stopId].lon) {
@@ -142,6 +142,9 @@ window.loadCompanyGtfsData = async function(company) {
                     //     console.log("pushされたexisting.companiesは", existing.companies);//////////////
                     // }
                 }
+                console.log("existing.lat", existing.lat);
+                console.log("stopLat", stopLat);
+                console.log("window.stopLookup[stopId].lat", window.stopLookup[stopId].lat);
             }
         }
     } catch (e) {
