@@ -37,6 +37,7 @@ window.TimetableManager = {
         console.log(
           `🔍 ${company.name}: 今日の運行Trip数 = ${tripInfoMap.size}`,
         );
+        console.log(company);
         if (tripInfoMap.size === 0) continue;
 
         // 【追跡ログ3】API通信
@@ -60,7 +61,8 @@ window.TimetableManager = {
 
   async _getStopTimes(company, stopId, tripInfoMap) {
     const safeStopId = encodeURIComponent(stopId);
-    const apiUrl = `${window.API_BASE_URL}/api/get-all-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+    const apiUrl = `${window.BUS_COMPANIES.realtimeUrl}/api/get-all-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
+    // const apiUrl = `${window.API_BASE_URL}/api/get-all-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
     // const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
 
     try {
@@ -157,6 +159,6 @@ window.showTimetableForStop = function (stopId) {
     console.warn("会社情報なし:", stopId);
     return;
   }
-  console.log(stopId, companyIds);
+
   window.TimetableManager.showTimetable(stopId, companyIds);
 };
