@@ -37,7 +37,6 @@ window.TimetableManager = {
         console.log(
           `🔍 ${company.name}: 今日の運行Trip数 = ${tripInfoMap.size}`,
         );
-        console.log(company);
         if (tripInfoMap.size === 0) continue;
 
         // 【追跡ログ3】API通信
@@ -70,9 +69,9 @@ window.TimetableManager = {
       if (!res.ok) throw new Error(`APIエラー: ${res.status}`);
 
       const data = await res.json();
-      console.log(data);
+      console.log("data", data);
       // 【重要：Vercelから何が届いているか生データを確認】
-      console.log(`📡 API生データ (${company.id}):`, data.slice(0, 2));
+      console.log(`📡 API生データ (${company.id}):`, data.entity.slice(0, 2));
 
       const results = [];
       data.forEach((item) => {
