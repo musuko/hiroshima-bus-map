@@ -71,7 +71,7 @@ window.TimetableManager = {
       const data = await res.json();
       console.log("data", data);
       // 【重要：Vercelから何が届いているか生データを確認】
-      console.log(`📡 API生データ (${company.id}):`, data.entity);
+      console.log(`📡 API生データ (${company.id}):`, data);
       // console.log(`📡 API生データ (${company.id}):`, data.entity.slice(0, 2));
 
       const results = [];
