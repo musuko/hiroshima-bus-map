@@ -157,6 +157,6 @@ window.showTimetableForStop = function (stopId) {
     console.warn("会社情報なし:", stopId);
     return;
   }
-
+  console.log(stopId, companyIds);
   window.TimetableManager.showTimetable(stopId, companyIds);
 };
