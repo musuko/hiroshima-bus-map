@@ -190,7 +190,7 @@ window.addEventListener('load', async () => {
     // 4. バス更新
     if (window.map && typeof window.updateBusPositions === 'function') {
         window.updateBusPositions();
-        setInterval(() => window.updateBusPositions(), 15000);
+        setInterval(() => window.updateBusPositions(), 60000);
     }
 });
 
