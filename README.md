@@ -1,6 +1,6 @@
 ## 本日の広島県のバス時刻表を調べることができます。
 ### 使い方
-- https://musuko.github.io/hiroshima-bus-map/　にアクセス
+- https://musuko.github.io/hiroshima-bus-map/
 - バス会社を選択
 - 使いたいバス停を地図で選択すると、そのバス停の時刻表が開く
 - 乗りたいバスを選択すると、そのバスの時刻表が開く。また、バスルートが地図に表示される。
