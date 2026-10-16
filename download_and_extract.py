@@ -8,10 +8,10 @@ TARGET_BASE_DIR = r"D:\Users\Downloads\current_data\info"
 # 【設定2】ダウンロードしたいURLと、対応するフォルダ名のリスト
 # ※ここに会社名とURLをどんどん追加していけます
 BUS_DATA_LIST = [
-    {"name": "hiroden", "url": "https://example.com"},
-    {"name": "hirobus", "url": "https://example.com"},
-    {"name": "geiyo",   "url": "https://example.com"},
-    {"name": "hiroko",  "url": "https://example.com"},
+    {"name": "hiroden", "url": "https://ajt-mobusta-gtfs.mcapps.jp/static/8/current_data.zip"},
+    {"name": "hirobus", "url": "https://ajt-mobusta-gtfs.mcapps.jp/static/9/current_data.zip"},
+    {"name": "hiroko",  "url": "https://ajt-mobusta-gtfs.mcapps.jp/static/10/current_data.zip"},
+    {"name": "geiyo",   "url": "https://ajt-mobusta-gtfs.mcapps.jp/static/11/current_data.zip"},
     # さらに会社を増やす場合は、以下のように後ろにカンマを付けて追加します
     # {"name": "会社名", "url": "URL"},
 ]
