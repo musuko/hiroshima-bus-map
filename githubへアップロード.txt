@@ -1,0 +1,48 @@
+まず現在の状態を確認するため、ターミナルで以下のコマンドを実行してください。
+
+PowerShell
+git status
+表示された結果に応じて、【A】 または 【B】 の手順に進んでください。
+
+【パターンA】すでに Git 管理されている場合（ブランチ名が表示された場合）
+普段の更新を GitHub にアップロードする通常の手順です。
+
+PowerShell
+# 1. 変更されたファイルをすべてステージングに追加
+git add .
+
+# 2. 変更内容を記録（メッセージは変更内容に合わせて記載）
+git commit -m "Update bus data scripts"
+
+# 3. GitHub へアップロード
+git push origin main
+(※ GitHub 側のメインブランチ名が master の場合は git push origin master)
+
+【パターンB】初めて GitHub にアップロードする場合（fatal: not a git repository と出た場合）
+事前に GitHub のWebサイト上で空のリポジトリ（新規作成ボタンから作成） を用意した上で、順番に実行してください。
+
+PowerShell
+# 1. このフォルダで Git を初期化
+git init
+
+# 2. 全ファイルを登録対象に追加
+git add .
+
+# 3. 最初のコミットを作成
+git commit -m "Initial commit"
+
+# 4. ブランチ名を main に設定
+git branch -M main
+
+# 5. GitHub のリモートリポジトリ先を登録（ご自身のURLに置き換えてください）
+git remote add origin https://github.com/あなたのユーザー名/リポジトリ名.git
+
+# 6. 初回アップロード
+git push -u origin main
+※ 推奨：巨大なバスデータ（idata）をアップロードから除外する場合
+ダウンロードしたバスの解凍データ（idata フォルダ）はファイル数が多く容量も大きいため、GitHub に上げないのが一般的です。コードだけを管理したい場合は、git add . の前に同じフォルダ内に .gitignore という名前のファイルを作成し、中身を以下のように記述してください。
+
+Plaintext
+idata/
+*.zip
+__pycache__/
