@@ -33,17 +33,17 @@ window.APP_CONFIG = {
     // バス会社ごとのデザイン設定（共通バス停 shared を含む）
     COMPANIES: {
         hiroden: { color: '#ADFF2F', textColor: '#008000' },
-        hirobus: { color: '#FF0000', textColor: '#e60012' },
-        hiroko: { color: '#eb9b6f', textColor: '#eb9b6f' },
+        hiroshimabus: { color: '#FF0000', textColor: '#e60012' },
+        hirokotsu: { color: '#eb9b6f', textColor: '#eb9b6f' },
         geiyo: { color: '#33ccff', textColor: '#33ccff' },
         bihoku: { color: '#191970', textColor: '#191970' },
-        jrchugokubus: { color: '#000080', textColor: '#000080' },
-        bonbus: { color: '#2e8b57', textColor: '#228b22' },
+        jrbus: { color: '#000080', textColor: '#000080' },
+        hdnishihiroshima: { color: '#2e8b57', textColor: '#228b22' },
         forble: { color: '#dc143c', textColor: '#dc143c' },
-        ohnoheart: { color: '#4169e1', textColor: '#4169e1' },
-        kure_seikatsu: { color: '#ADFF2F', textColor: '#008000' },
-        hatsukaichi_jishu: { color: '#ff00ff', textColor: '#ff00ff' },
-        ato: { color: '#fffafa', textColor: '#000000' },
+        sasaki: { color: '#4169e1', textColor: '#4169e1' },
+        kurebus: { color: '#ADFF2F', textColor: '#008000' },
+        hatsukaichi: { color: '#ff00ff', textColor: '#ff00ff' },
+        asahi: { color: '#fffafa', textColor: '#000000' },
         onomichi: { color: '#7fffd4', textColor: '#7fffd4' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
@@ -54,23 +54,23 @@ window.BUS_COMPANIES =[
     {
         id: 'hiroden',
         name: '広電バス',
-        staticPath: './info/hiroden/',
+        staticPath: './data/hiroden/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=8`,
         active: true,   // 起動時にデータを読み込むか
         visible: true   // 地図上に表示するか（チェックボックスと連動）★追加
     },
     {
-        id: 'hirobus',
+        id: 'hiroshimabus',
         name: '広島バス',
-        staticPath: './info/hirobus/',
+        staticPath: './data/hiroshimabus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=9`,
         active: true,
         visible: true   // ★追加
     },
         {
-        id: 'hiroko',
+        id: 'hirokotsu',
         name: '広島交通',
-        staticPath: './info/hiroko/',
+        staticPath: './data/hirokotsu/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=10`,
         active: true,
         visible: true   // ★追加
@@ -78,7 +78,7 @@ window.BUS_COMPANIES =[
     {
         id: 'geiyo',
         name: '芸陽バス',
-        staticPath: './info/geiyo/',
+        staticPath: './data/geiyo/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=11`,
         active: true,
         visible: true   // ★追加
@@ -86,23 +86,23 @@ window.BUS_COMPANIES =[
     {
         id: 'bihoku',
         name: '備北バス',
-        staticPath: './info/bihoku/',
+        staticPath: './data/bihoku/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=12`,
         active: true,
         visible: true   // ★追加
     },
     {
-        id: 'jrchugokubus',
+        id: 'jrbus',
         name: 'JRバス',
-        staticPath: './info/jrchugokubus/',
+        staticPath: './data/jrbus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=15`,
         active: true,
         visible: true   // ★追加
     },
     {
-        id: 'bonbus',
+        id: 'hdnishihiroshima',
         name: 'ボンバス',
-        staticPath: './info/bonbus/',
+        staticPath: './data/hdnishihiroshima/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=13`,
         active: true,
         visible: true   // ★追加
@@ -110,39 +110,39 @@ window.BUS_COMPANIES =[
     {
         id: 'forble',
         name: 'フォーブル',
-        staticPath: './info/forble/',
+        staticPath: './data/forble/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=14`,
         active: true,
         visible: true   // ★追加
     },
     {
-        id: 'ohnoheart',
+        id: 'sasaki',
         name: 'おおのハートバス',
-        staticPath: './info/ohnoheart/',
+        staticPath: './data/sasaki/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=17`,
         active: true,
         visible: true   // ★追加
     },
     {
-        id: 'kure_seikatsu',
+        id: 'kurebus',
         name: '呉生活バス',
-        staticPath: './info/kure_seikatsu/',
+        staticPath: './data/kurebus/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=18`,
         active: true,
         visible: true   // ★追加
     },
     {
-        id: 'hatsukaichi_jishu',
+        id: 'hatsukaichi',
         name: '廿日市自主運行バス',
-        staticPath: './info/hatsukaichi_jishu/',
+        staticPath: './data/hatsukaichi/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=19`,
         active: true,
         visible: true   // ★追加
     },
     {
-        id: 'ato',
+        id: 'asahi',
         name: '朝日交通',
-        staticPath: './info/ato/',
+        staticPath: './data/asahi/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=54`,
         active: true,
         visible: true   // ★追加
@@ -150,7 +150,7 @@ window.BUS_COMPANIES =[
     {
         id: 'onomichi',
         name: 'おのみちバス',
-        staticPath: './info/onomichi/',
+        staticPath: './data/onomichi/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=53`,
         active: true,
         visible: true   // ★追加
