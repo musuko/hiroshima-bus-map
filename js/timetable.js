@@ -1,7 +1,9 @@
 /**
  * js/timetable.js
  * 役割: バス停クリック時の統合時刻表表示（ローカルGTFSから読み込み）
- * ★修正: デバッグログを強化し、ループ/往復判定の問題を特定しやすくした
+ * ★修正: 
+ *   - 行先は常に「対象バス停より後の最終バス停」とする（ループ判定を廃止）
+ *   - 時刻表の各行をクリックすると、そのtripの全バス停時刻表を表示する
  */
 
 window.TimetableManager = {
@@ -20,16 +22,12 @@ window.TimetableManager = {
 
             try {
                 const activeServiceIds = await window.CalendarManager.getActiveServiceIds(company);
-                console.log(`🔍 ${company.name}: 有効なServiceId数 = ${activeServiceIds.length}`);
                 if (activeServiceIds.length === 0) continue;
 
                 const tripInfoMap = await window.CalendarManager.getValidTripIds(company, activeServiceIds);
-                console.log(`🔍 ${company.name}: 今日の運行Trip数 = ${tripInfoMap.size}`);
                 if (tripInfoMap.size === 0) continue;
 
                 const times = await this._getStopTimes(company, stopId, tripInfoMap);
-                console.log(`🔍 ${company.name}: ローカルstop_times該当 = ${times.length}件`);
-
                 combinedTimes = combinedTimes.concat(times);
             } catch (e) { 
                 console.error(`${companyId} 取得失敗:`, e); 
@@ -37,29 +35,17 @@ window.TimetableManager = {
         }
 
         combinedTimes.sort((a, b) => a.time.localeCompare(b.time));
-        console.log(`🏁 最終的な表示件数: ${combinedTimes.length}件`);
 
         this._renderCombinedTimetable(safeId, combinedTimes);
     },
 
     /**
-     * trip_headsign が実質的に空かどうかを判定
-     */
-    _isEmptyHeadsign(headsign) {
-        if (!headsign) return true;
-        if (typeof headsign !== 'string') return true;
-        return headsign.trim() === '';
-    },
-
-    /**
      * ローカルの stop_times.txt を読み込んで時刻を抽出
+     * ★行先は常に「対象バス停より後の最終バス停」とする
      */
     async _getStopTimes(company, stopId, tripInfoMap) {
         const results = [];
         const safeStopId = String(stopId).trim();
-
-        // ★関数開始ログ
-        console.log(`=== _getStopTimes START: company=${company.name}, stopId=${safeStopId}`);
 
         try {
             let res = await fetch(`${company.staticPath}stop_times.txt`);
@@ -67,9 +53,7 @@ window.TimetableManager = {
 
             if (res.ok) {
                 files = [await res.text()];
-                console.log(`  → stop_times.txt 読込成功 (${files[0].length} bytes)`);
             } else {
-                console.log(`  → stop_times.txt 404, 分割ファイルを検索`);
                 let fileIndex = 1;
                 while (true) {
                     const splitRes = await fetch(`${company.staticPath}stop_times_${fileIndex}.txt`);
@@ -77,15 +61,12 @@ window.TimetableManager = {
                     files.push(await splitRes.text());
                     fileIndex++;
                 }
-                console.log(`  → 分割ファイル ${files.length} 個検出`);
             }
 
             if (files.length === 0) {
-                console.warn(`${company.name}: stop_times.txt が見つかりません (${company.staticPath})`);
                 return results;
             }
 
-            // 全行をパースして配列に格納
             const allRows = [];
             let tIdx = -1, sIdx = -1, aIdx = -1, dIdx = -1, sqIdx = -1;
 
@@ -105,13 +86,9 @@ window.TimetableManager = {
                     aIdx = head.indexOf('arrival_time');
                     dIdx = head.indexOf('departure_time');
                     sqIdx = head.indexOf('stop_sequence');
-                    console.log(`  → ヘッダー解析: trip_id@${tIdx}, stop_id@${sIdx}, arrival_time@${aIdx}, stop_sequence@${sqIdx}`);
                 }
 
-                if (tIdx === -1 || sIdx === -1) {
-                    console.warn(`${company.name}: ヘッダー解析失敗`);
-                    continue;
-                }
+                if (tIdx === -1 || sIdx === -1) continue;
 
                 const timeIdx = aIdx >= 0 ? aIdx : dIdx;
                 const startIndex = hasHeader ? 1 : 0;
@@ -132,8 +109,6 @@ window.TimetableManager = {
                 }
             }
 
-            console.log(`  → allRows 総数: ${allRows.length}件`);
-
             // tripId ごとに行をグループ化（sequence順にソート）
             const tripRowsMap = new Map();
             allRows.forEach(row => {
@@ -147,109 +122,27 @@ window.TimetableManager = {
                 rows.sort((a, b) => a.sequence - b.sequence);
             });
 
-            console.log(`  → tripRowsMap 総数: ${tripRowsMap.size} trips`);
-
             // 対象バス停の時刻を抽出
-            let matchCount = 0;
             allRows.forEach(row => {
-                // ★条件判定前にログ
-                const matchesStop = row.stopId === safeStopId;
-                const hasTrip = tripInfoMap.has(row.tripId);
-
-                if (matchesStop && hasTrip) {
-                    matchCount++;
-                    if (matchCount <= 3) { // 最初の3件だけ細ログ
-                        console.log(`  → MATCH #${matchCount}: trip=${row.tripId}, seq=${row.sequence}, time=${row.time}`);
-                    }
-                }
-
-                if (!matchesStop) return;
-                if (!hasTrip) {
-                    if (matchCount <= 3) console.log(`    → tripInfoMap.has=false, skip`);
-                    return;
-                }
+                if (row.stopId !== safeStopId) return;
+                if (!tripInfoMap.has(row.tripId)) return;
 
                 const info = tripInfoMap.get(row.tripId);
                 const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
 
-                // 行先の決定
+                // ★行先は常に「対象バス停より後の最終バス停」とする
                 let destination = info.tripHeadsign;
-                const isEmptyHeadsign = this._isEmptyHeadsign(destination);
-
-                if (matchCount <= 3) {
-                    console.log(`    → headsign="${destination}", empty=${isEmptyHeadsign}, routeId=${info.routeId}`);
-                }
-
-                if (isEmptyHeadsign) {
+                if (!destination || destination.trim() === '') {
                     const tripRows = tripRowsMap.get(row.tripId) || [];
                     const laterStops = tripRows.filter(r => r.sequence > row.sequence);
 
                     if (laterStops.length > 0) {
-                        // trip内で stop_id が重複するかチェック（ループ/往復判定）
-                        const stopIdOccurrences = new Map();
-                        tripRows.forEach(r => {
-                            stopIdOccurrences.set(r.stopId, (stopIdOccurrences.get(r.stopId) || 0) + 1);
-                        });
-                        const duplicateStopIds = Array.from(stopIdOccurrences.entries())
-                            .filter(([id, count]) => count >= 2)
-                            .map(([id]) => id);
-                        const hasDuplicates = duplicateStopIds.length > 0;
-
-                        if (matchCount <= 3) {
-                            console.log(`    → duplicateStopIds=[${duplicateStopIds.join(',')}], hasDuplicates=${hasDuplicates}`);
-                        }
-
-                        if (hasDuplicates) {
-                            // ★ループ/往復系統の行先判定
-                            const seen = new Set();
-                            let turnaroundIndex = -1;
-
-                            for (let i = 0; i < tripRows.length; i++) {
-                                if (duplicateStopIds.includes(tripRows[i].stopId)) {
-                                    if (seen.has(tripRows[i].stopId)) {
-                                        // 2回目の出現
-                                        if (tripRows[i].sequence > row.sequence) {
-                                            turnaroundIndex = i;
-                                            break;
-                                        }
-                                    } else {
-                                        seen.add(tripRows[i].stopId);
-                                    }
-                                }
-                            }
-
-                            const isBeforeTurnaround = turnaroundIndex !== -1;
-
-                            if (matchCount <= 3) {
-                                console.log(`    → turnaroundIndex=${turnaroundIndex}, isBeforeTurnaround=${isBeforeTurnaround}`);
-                            }
-
-                            if (isBeforeTurnaround && turnaroundIndex > 0) {
-                                // ★前半：折り返し点（重複stop_idの2回目）の直前のバス停を行先とする
-                                const turnaroundStop = tripRows[turnaroundIndex - 1];
-                                const stopInfo = window.stopLookup[turnaroundStop.stopId];
-                                destination = stopInfo ? stopInfo.name : "終点不明";
-                                if (matchCount <= 3) console.log(`    → 前半の行先: ${destination}`);
-                            } else {
-                                // ★後半：最終バス停を行先とする
-                                const lastStop = laterStops[laterStops.length - 1];
-                                const stopInfo = window.stopLookup[lastStop.stopId];
-                                destination = stopInfo ? stopInfo.name : "終点不明";
-                                if (matchCount <= 3) console.log(`    → 後半の行先: ${destination}`);
-                            }
-                        } else {
-                            // ★通常の片道系統: 最終バス停を行先とする
-                            const lastStop = laterStops[laterStops.length - 1];
-                            const stopInfo = window.stopLookup[lastStop.stopId];
-                            destination = stopInfo ? stopInfo.name : "終点明";
-                            if (matchCount <= 3) console.log(`    → 通常系統の行先: ${destination}`);
-                        }
+                        const lastStop = laterStops[laterStops.length - 1];
+                        const stopInfo = window.stopLookup[lastStop.stopId];
+                        destination = stopInfo ? stopInfo.name : "終点不明";
                     } else {
                         destination = "終点";
-                        if (matchCount <= 3) console.log(`    → 最終バス停の行先: 終点`);
                     }
-                } else {
-                    if (matchCount <= 3) console.log(`    → trip_headsign使用: ${destination}`);
                 }
 
                 results.push({
@@ -257,12 +150,10 @@ window.TimetableManager = {
                     routeShort: routeData.shortName,
                     destination: destination,
                     companyId: company.id,
-                    companyName: company.name
+                    companyName: company.name,
+                    tripId: row.tripId  // ★追加: tripの時刻表表示用
                 });
             });
-
-            console.log(`  → マッチ総数: ${matchCount}件, results: ${results.length}件`);
-            console.log(`=== _getStopTimes END`);
 
             return results;
         } catch (err) {
@@ -291,11 +182,18 @@ window.TimetableManager = {
                     </tr>
                  </thead><tbody>`;
 
-        times.forEach(t => {
+        times.forEach((t, index) => {
             const config = window.APP_CONFIG.COMPANIES[t.companyId];
             const dotHtml = `<span style="display:inline-block; width:7px; height:7px; background:${config.color}; border-radius:50%; margin-right:3px; border:1px solid #999;"></span>`;
 
-            html += `<tr style="border-bottom:1px solid #eee;">
+            // ★行に data-trip-id と data-company-id を付与し、クリック可能にする
+            html += `<tr class="timetable-row" 
+                          data-trip-id="${t.tripId}" 
+                          data-company-id="${t.companyId}"
+                          style="border-bottom:1px solid #eee; cursor:pointer;"
+                          onmouseover="this.style.background='#f0f8ff'"
+                          onmouseout="this.style.background=''">`;
+            html += `
                 <td style="padding:10px 4px; font-weight:bold; font-size:1.2em; vertical-align:middle;">${t.time}</td>
                 <td style="padding:10px 4px; vertical-align:middle;">
                     <div style="font-size:9px; color:#666; white-space:nowrap;">${dotHtml}${t.companyName}</div>
@@ -308,5 +206,94 @@ window.TimetableManager = {
         });
         html += `</tbody></table></div>`;
         container.innerHTML = html;
+
+        // ★各行にクリックイベントを登録
+        container.querySelectorAll('.timetable-row').forEach(row => {
+            row.addEventListener('click', async () => {
+                const tripId = row.getAttribute('data-trip-id');
+                const companyId = row.getAttribute('data-company-id');
+                if (tripId && companyId && window.getFullTimetableForTrip) {
+                    console.log(`🚌 trip時刻表表示: tripId=${tripId}, companyId=${companyId}`);
+                    const tripStops = await window.getFullTimetableForTrip(tripId, companyId);
+                    this._showTripDetailModal(tripId, companyId, tripStops);
+                }
+            });
+        });
+    },
+
+    /**
+     * ★追加: tripの全バス停時刻表をモーダル表示
+     */
+    _showTripDetailModal(tripId, companyId, tripStops) {
+        const company = window.BUS_COMPANIES.find(c => c.id === companyId);
+        const companyName = company ? company.name : companyId;
+
+        // 既存のモーダルがあれば削除
+        const existingModal = document.getElementById('trip-detail-modal');
+        if (existingModal) existingModal.remove();
+
+        // モーダル要素作成
+        const modal = document.createElement('div');
+        modal.id = 'trip-detail-modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+        `;
+
+        let stopsHtml = '';
+        if (tripStops && tripStops.length > 0) {
+            stopsHtml = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead style="background:#f5f5f5;">
+                    <tr style="border-bottom:2px solid #ccc;">
+                        <th style="padding:8px 6px; text-align:left;">時刻</th>
+                        <th style="padding:8px 6px; text-align:left;">バス停</th>
+                        <th style="padding:8px 6px; text-align:left;">順番</th>
+                    </tr>
+                </thead><tbody>`;
+            tripStops.forEach((stop, idx) => {
+                const bgStyle = idx % 2 === 0 ? 'background:#fff;' : 'background:#fafafa;';
+                stopsHtml += `<tr style="border-bottom:1px solid #eee; ${bgStyle}">
+                    <td style="padding:8px 6px; font-weight:bold;">${stop.time}</td>
+                    <td style="padding:8px 6px;">${stop.stopName}</td>
+                    <td style="padding:8px 6px; color:#666; font-size:11px;">${stop.sequence}</td>
+                </tr>`;
+            });
+            stopsHtml += `</tbody></table>`;
+        } else {
+            stopsHtml = `<p style="padding:20px; color:#666;">時刻表情報を取得できませんでした。</p>`;
+        }
+
+        modal.innerHTML = `
+            <div style="
+                background: white; border-radius: 8px; max-width: 400px; width: 90%;
+                max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            ">
+                <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:bold; font-size:16px;">${companyName}</div>
+                        <div style="font-size:12px; color:#666;">trip: ${tripId.substring(0, 20)}...</div>
+                    </div>
+                    <button id="trip-modal-close" style="
+                        background:none; border:none; font-size:24px; cursor:pointer; color:#999;
+                    ">&times;</button>
+                </div>
+                <div style="padding:10px;">
+                    ${stopsHtml}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // 閉じるボタンのイベント
+        document.getElementById('trip-modal-close').addEventListener('click', () => {
+            modal.remove();
+        });
+
+        // 背景クックでも閉じる
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
     }
 };
