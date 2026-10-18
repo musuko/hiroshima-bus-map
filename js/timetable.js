@@ -1,6 +1,7 @@
 /**
  * js/timetable.js
- * 役割: 統合時刻表の表示とデータフローの追跡
+ * 役割: バス停クリック時の統合時刻表表示（ローカルGTFSから読み込み）
+ * ★外部APIは使用せず、stop_times.txt を直接読み込む
  */
 
 window.TimetableManager = {
@@ -28,10 +29,10 @@ window.TimetableManager = {
                 console.log(`🔍 ${company.name}: 今日の運行Trip数 = ${tripInfoMap.size}`);
                 if (tripInfoMap.size === 0) continue;
 
-                // 【追跡ログ3】API通信
+                // 【追跡ログ3】★ローカル stop_times.txt から時刻を読み込み
                 const times = await this._getStopTimes(company, stopId, tripInfoMap);
-                console.log(`🔍 ${company.name}: APIから届いた該当時刻 = ${times.length}件`);
-                
+                console.log(`🔍 ${company.name}: ローカルstop_times該当 = ${times.length}件`);
+
                 combinedTimes = combinedTimes.concat(times);
             } catch (e) { 
                 console.error(`${companyId} 取得失敗:`, e); 
@@ -45,40 +46,92 @@ window.TimetableManager = {
         this._renderCombinedTimetable(safeId, combinedTimes);
     },
 
+    /**
+     * ★ローカルの stop_times.txt を直接読み込んで時刻を抽出
+     */
     async _getStopTimes(company, stopId, tripInfoMap) {
-        const safeStopId = encodeURIComponent(stopId);
-        const apiUrl = `${window.API_BASE_URL}/api/get-stop-timetable?company_id=${company.id}&stop_id=${safeStopId}`;
-        
-        try {
-            const res = await fetch(apiUrl);
-            if (!res.ok) throw new Error(`APIエラー: ${res.status}`);
-            
-            const data = await res.json(); 
-            // 【重要：Vercelから何が届いているか生データを確認】
-            console.log(`📡 API生データ (${company.id}):`, data.slice(0, 2)); 
+        const results = [];
+        const safeStopId = String(stopId).trim();
 
-            const results = [];
-            data.forEach(item => {
-                // Vercelから届くIDが tripId なのか tId なのかをここで吸収
-                const tid = item.tripId || item.tId;
-                
-                if (tripInfoMap.has(tid)) {
-                    const info = tripInfoMap.get(tid);
+        try {
+            // まず通常の stop_times.txt を読み込む
+            let res = await fetch(`${company.staticPath}stop_times.txt`);
+            let files = [];
+
+            if (res.ok) {
+                files = [await res.text()];
+            } else {
+                // 分割ファイルを順番に読み込む
+                let fileIndex = 1;
+                while (true) {
+                    const splitRes = await fetch(`${company.staticPath}stop_times_${fileIndex}.txt`);
+                    if (!splitRes.ok) break;
+                    files.push(await splitRes.text());
+                    fileIndex++;
+                }
+            }
+
+            if (files.length === 0) {
+                console.warn(`${company.name}: stop_times.txt が見つかりません (${company.staticPath})`);
+                return results;
+            }
+
+            let tIdx = -1, sIdx = -1, aIdx = -1, dIdx = -1;
+
+            for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+                const text = files[fileIndex];
+                const lines = text.trim().split(/\r?\n/);
+
+                if (lines.length === 0) continue;
+
+                // ヘッダー行の解析
+                const firstLine = lines[0].toLowerCase();
+                const hasHeader = (fileIndex === 0) || firstLine.includes('trip_id');
+
+                if (hasHeader) {
+                    const head = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                    tIdx = head.indexOf('trip_id');
+                    sIdx = head.indexOf('stop_id');
+                    aIdx = head.indexOf('arrival_time');
+                    dIdx = head.indexOf('departure_time');
+                }
+
+                if (tIdx === -1 || sIdx === -1) {
+                    console.warn(`${company.name}: ヘッダー解析失敗 (trip_id=${tIdx}, stop_id=${sIdx})`);
+                    continue;
+                }
+
+                const timeIdx = aIdx >= 0 ? aIdx : dIdx;
+                const startIndex = hasHeader ? 1 : 0;
+
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (!line.includes(safeStopId)) continue;
+
+                    const cols = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+                    if (cols.length <= Math.max(tIdx, sIdx, timeIdx)) continue;
+                    if (cols[sIdx] !== safeStopId) continue;
+
+                    const tripId = cols[tIdx];
+                    if (!tripInfoMap.has(tripId)) continue;
+
+                    const info = tripInfoMap.get(tripId);
                     const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
-                    const destInfo = window.globalStopMap.get(item.destId);
+                    const destination = info.tripHeadsign || "終点不明";
 
                     results.push({
-                        time: item.time.substring(0, 5),
+                        time: (cols[timeIdx] || "00:00:00").substring(0, 5),
                         routeShort: routeData.shortName,
-                        destination: destInfo ? destInfo.name : "終点不明",
+                        destination: destination,
                         companyId: company.id,
                         companyName: company.name
                     });
                 }
-            });
+            }
+
             return results;
         } catch (err) {
-            console.error("API fetch error:", err);
+            console.error(`${company.name} stop_times読込エラー:`, err);
             return [];
         }
     },
