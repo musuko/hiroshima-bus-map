@@ -183,8 +183,9 @@ window.addEventListener('load', async () => {
     } catch (e) { console.error("現在地エラー:", e); }
 
     // 3. データ読み込み
-    if (typeof window.prepareGtfsData === 'function') {
-        await window.prepareGtfsData();
+    if (typeof window.prepareAllGtfsData === 'function') {
+    // if (typeof window.prepareGtfsData === 'function') { //20261018修正sakanaAI
+        await window.prepareAllGtfsData();
     }
 
     // 4. バス更新

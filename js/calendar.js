@@ -132,8 +132,10 @@ window.CalendarManager = {
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
                 if (activeSet.has(cols[sIdx])) {
+                    const hIdx = head.indexOf('trip_headsign'); // ← 追加 20261018
                     validTripsMap.set(cols[tIdx], {
-                        routeId: cols[rIdx] || ""
+                        routeId: cols[rIdx] || "",
+                        tripHeadsign: hIdx >= 0 ? (cols[hIdx] || "") : ""  // ← 追加 20261018
                     });
                 }
             }
