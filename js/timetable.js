@@ -1,10 +1,7 @@
 /**
  * js/timetable.js
  * 役割: バス停クリック時の統合時刻表表示（ローカルGTFSから読み込み）
- * ★修正: trip_headsign が空の場合、ループ/往復系統に対応
- *        - 対象バス停より後に「重複stop_idの2回目」があるかで前半/後半を判定
- *        - 前半: 折り返し点（重複stop_idの2回目）の直前のバス停を行先とする
- *        - 後半: 最終バス停を行先とする
+ * ★修正: デバッグログを強化し、ループ/往復判定の問題を特定しやすくした
  */
 
 window.TimetableManager = {
@@ -46,11 +43,23 @@ window.TimetableManager = {
     },
 
     /**
+     * trip_headsign が実質的に空かどうかを判定
+     */
+    _isEmptyHeadsign(headsign) {
+        if (!headsign) return true;
+        if (typeof headsign !== 'string') return true;
+        return headsign.trim() === '';
+    },
+
+    /**
      * ローカルの stop_times.txt を読み込んで時刻を抽出
      */
     async _getStopTimes(company, stopId, tripInfoMap) {
         const results = [];
         const safeStopId = String(stopId).trim();
+
+        // ★関数開始ログ
+        console.log(`=== _getStopTimes START: company=${company.name}, stopId=${safeStopId}`);
 
         try {
             let res = await fetch(`${company.staticPath}stop_times.txt`);
@@ -58,7 +67,9 @@ window.TimetableManager = {
 
             if (res.ok) {
                 files = [await res.text()];
+                console.log(`  → stop_times.txt 読込成功 (${files[0].length} bytes)`);
             } else {
+                console.log(`  → stop_times.txt 404, 分割ファイルを検索`);
                 let fileIndex = 1;
                 while (true) {
                     const splitRes = await fetch(`${company.staticPath}stop_times_${fileIndex}.txt`);
@@ -66,6 +77,7 @@ window.TimetableManager = {
                     files.push(await splitRes.text());
                     fileIndex++;
                 }
+                console.log(`  → 分割ファイル ${files.length} 個検出`);
             }
 
             if (files.length === 0) {
@@ -93,6 +105,7 @@ window.TimetableManager = {
                     aIdx = head.indexOf('arrival_time');
                     dIdx = head.indexOf('departure_time');
                     sqIdx = head.indexOf('stop_sequence');
+                    console.log(`  → ヘッダー解析: trip_id@${tIdx}, stop_id@${sIdx}, arrival_time@${aIdx}, stop_sequence@${sqIdx}`);
                 }
 
                 if (tIdx === -1 || sIdx === -1) {
@@ -119,6 +132,8 @@ window.TimetableManager = {
                 }
             }
 
+            console.log(`  → allRows 総数: ${allRows.length}件`);
+
             // tripId ごとに行をグループ化（sequence順にソート）
             const tripRowsMap = new Map();
             allRows.forEach(row => {
@@ -132,17 +147,40 @@ window.TimetableManager = {
                 rows.sort((a, b) => a.sequence - b.sequence);
             });
 
+            console.log(`  → tripRowsMap 総数: ${tripRowsMap.size} trips`);
+
             // 対象バス停の時刻を抽出
+            let matchCount = 0;
             allRows.forEach(row => {
-                if (row.stopId !== safeStopId) return;
-                if (!tripInfoMap.has(row.tripId)) return;
+                // ★条件判定前にログ
+                const matchesStop = row.stopId === safeStopId;
+                const hasTrip = tripInfoMap.has(row.tripId);
+
+                if (matchesStop && hasTrip) {
+                    matchCount++;
+                    if (matchCount <= 3) { // 最初の3件だけ細ログ
+                        console.log(`  → MATCH #${matchCount}: trip=${row.tripId}, seq=${row.sequence}, time=${row.time}`);
+                    }
+                }
+
+                if (!matchesStop) return;
+                if (!hasTrip) {
+                    if (matchCount <= 3) console.log(`    → tripInfoMap.has=false, skip`);
+                    return;
+                }
 
                 const info = tripInfoMap.get(row.tripId);
                 const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
 
                 // 行先の決定
                 let destination = info.tripHeadsign;
-                if (!destination) {
+                const isEmptyHeadsign = this._isEmptyHeadsign(destination);
+
+                if (matchCount <= 3) {
+                    console.log(`    → headsign="${destination}", empty=${isEmptyHeadsign}, routeId=${info.routeId}`);
+                }
+
+                if (isEmptyHeadsign) {
                     const tripRows = tripRowsMap.get(row.tripId) || [];
                     const laterStops = tripRows.filter(r => r.sequence > row.sequence);
 
@@ -157,9 +195,12 @@ window.TimetableManager = {
                             .map(([id]) => id);
                         const hasDuplicates = duplicateStopIds.length > 0;
 
+                        if (matchCount <= 3) {
+                            console.log(`    → duplicateStopIds=[${duplicateStopIds.join(',')}], hasDuplicates=${hasDuplicates}`);
+                        }
+
                         if (hasDuplicates) {
                             // ★ループ/往復系統の行先判定
-                            // 対象バス停より後に「重複stop_idの2回目」があるかで前半/後半を判定
                             const seen = new Set();
                             let turnaroundIndex = -1;
 
@@ -179,31 +220,36 @@ window.TimetableManager = {
 
                             const isBeforeTurnaround = turnaroundIndex !== -1;
 
-                            // デバッグログ
-                            console.log(`🔄 ${company.name} trip=${row.tripId} stop=${safeStopId} seq=${row.sequence} turnaroundIndex=${turnaroundIndex} isBeforeTurnaround=${isBeforeTurnaround}`);
+                            if (matchCount <= 3) {
+                                console.log(`    → turnaroundIndex=${turnaroundIndex}, isBeforeTurnaround=${isBeforeTurnaround}`);
+                            }
 
                             if (isBeforeTurnaround && turnaroundIndex > 0) {
                                 // ★前半：折り返し点（重複stop_idの2回目）の直前のバス停を行先とする
                                 const turnaroundStop = tripRows[turnaroundIndex - 1];
                                 const stopInfo = window.stopLookup[turnaroundStop.stopId];
                                 destination = stopInfo ? stopInfo.name : "終点不明";
-                                console.log(`  → 前半の行先: ${destination} (直前stop_id=${turnaroundStop.stopId})`);
+                                if (matchCount <= 3) console.log(`    → 前半の行先: ${destination}`);
                             } else {
                                 // ★後半：最終バス停を行先とする
                                 const lastStop = laterStops[laterStops.length - 1];
                                 const stopInfo = window.stopLookup[lastStop.stopId];
                                 destination = stopInfo ? stopInfo.name : "終点不明";
-                                console.log(`  → 後半の行先: ${destination} (最終stop_id=${lastStop.stopId})`);
+                                if (matchCount <= 3) console.log(`    → 後半の行先: ${destination}`);
                             }
                         } else {
                             // ★通常の片道系統: 最終バス停を行先とする
                             const lastStop = laterStops[laterStops.length - 1];
                             const stopInfo = window.stopLookup[lastStop.stopId];
-                            destination = stopInfo ? stopInfo.name : "終点不明";
+                            destination = stopInfo ? stopInfo.name : "終点明";
+                            if (matchCount <= 3) console.log(`    → 通常系統の行先: ${destination}`);
                         }
                     } else {
                         destination = "終点";
+                        if (matchCount <= 3) console.log(`    → 最終バス停の行先: 終点`);
                     }
+                } else {
+                    if (matchCount <= 3) console.log(`    → trip_headsign使用: ${destination}`);
                 }
 
                 results.push({
@@ -214,6 +260,9 @@ window.TimetableManager = {
                     companyName: company.name
                 });
             });
+
+            console.log(`  → マッチ総数: ${matchCount}件, results: ${results.length}件`);
+            console.log(`=== _getStopTimes END`);
 
             return results;
         } catch (err) {
