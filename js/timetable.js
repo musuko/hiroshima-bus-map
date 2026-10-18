@@ -1,7 +1,8 @@
 /**
  * js/timetable.js
  * 役割: バス停クリック時の統合時刻表表示（ローカルGTFSから読み込み）
- * ★修正: trip_headsign が空の場合、stop_times.txt 内の最終バス停名を行先とする
+ * ★修正: trip_headsign が空の場合、対象バス停から見た「先の終点」を行先とする
+ *        ループ/往復系統にも対応（対象バス停より後の最終バス停を特定）
  */
 
 window.TimetableManager = {
@@ -44,7 +45,7 @@ window.TimetableManager = {
 
     /**
      * ローカルの stop_times.txt を読み込んで時刻を抽出
-     * ★trip_headsign が空の場合、最終バス停名を行先とする
+     * ★trip_headsign が空の場合、対象バス停から見た「先の終点」を行先とする
      */
     async _getStopTimes(company, stopId, tripInfoMap) {
         const results = [];
@@ -71,7 +72,7 @@ window.TimetableManager = {
                 return results;
             }
 
-            // 全行をパースして配列に格納し、同時に各 trip の最バス停を特定
+            // 全行をパースして配列に格納
             const allRows = [];
             let tIdx = -1, sIdx = -1, aIdx = -1, dIdx = -1, sqIdx = -1;
 
@@ -117,17 +118,16 @@ window.TimetableManager = {
                 }
             }
 
-            // 各 trip の最終バス停（最大 sequence）を特定
-            const tripLastStopMap = new Map();
+            // tripId ごとに行をグループ化（高速化のため）
+            const tripRowsMap = new Map();
             allRows.forEach(row => {
-                if (!tripLastStopMap.has(row.tripId) || tripLastStopMap.get(row.tripId).sequence < row.sequence) {
-                    tripLastStopMap.set(row.tripId, { stopId: row.stopId, sequence: row.sequence });
+                if (!tripRowsMap.has(row.tripId)) {
+                    tripRowsMap.set(row.tripId, []);
                 }
+                tripRowsMap.get(row.tripId).push(row);
             });
 
             // 対象バス停の時刻を抽出
-            const processedTrips = new Set(); // 同じ trip の重複を防ぐ（同一バス停に複数回停車する合）
-
             allRows.forEach(row => {
                 if (row.stopId !== safeStopId) return;
                 if (!tripInfoMap.has(row.tripId)) return;
@@ -138,12 +138,19 @@ window.TimetableManager = {
                 // 行先の決定
                 let destination = info.tripHeadsign;
                 if (!destination) {
-                    const lastStop = tripLastStopMap.get(row.tripId);
-                    if (lastStop) {
+                    const tripRows = tripRowsMap.get(row.tripId) || [];
+                    // 対象バス停より後のバス停（sequenceが大きい）を取得
+                    const laterStops = tripRows.filter(r => r.sequence > row.sequence);
+
+                    if (laterStops.length > 0) {
+                        // sequenceでソートして最後のバス停が「先の終点」
+                        laterStops.sort((a, b) => a.sequence - b.sequence);
+                        const lastStop = laterStops[laterStops.length - 1];
                         const stopInfo = window.stopLookup[lastStop.stopId];
                         destination = stopInfo ? stopInfo.name : "終点不明";
                     } else {
-                        destination = "終点不明";
+                        // 対象バス停が最終バス停の場合
+                        destination = "終点";
                     }
                 }
 
