@@ -138,7 +138,7 @@ window.TimetableManager = {
 
                     if (laterStops.length > 0) {
                         const lastStop = laterStops[laterStops.length - 1];
-                        const stopInfo = window.stopLookup[lastStop.stopId];
+                        const stopInfo = window.stopLookup[company.id]?.[lastStop.stopId];  //20261019修正
                         destination = stopInfo ? stopInfo.name : "終点不明";
                     } else {
                         destination = "終点";

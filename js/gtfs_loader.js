@@ -42,6 +42,7 @@ window.loadCompanyGtfsData = async function(company) {
     console.log(`🚀 ${company.name} のGTFSデータを読み込み中...`);
     
     // --- A. stops.txt の読み込み ---
+// --- A. stops.txt の読み込み ---
     try {
         const res = await fetch(`${company.staticPath}stops.txt`);
         if (res.ok) {
@@ -51,11 +52,17 @@ window.loadCompanyGtfsData = async function(company) {
             const sIdIdx = head.indexOf('stop_id');
             const sNameIdx = head.indexOf('stop_name');
 
+            // ★修正: 会社ID階層を作成
+            if (!window.stopLookup[company.id]) {
+                window.stopLookup[company.id] = {};
+            }
+
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
                 if (cols.length > sIdIdx && cols[sIdIdx]) {
                     const stopId = cols[sIdIdx].trim();
-                    window.stopLookup[stopId] = { name: cols[sNameIdx] || "名称不明" };
+                    // ★修正: company.id 階層に保存
+                    window.stopLookup[company.id][stopId] = { name: cols[sNameIdx] || "名称不明" };
                 }
             }
         }

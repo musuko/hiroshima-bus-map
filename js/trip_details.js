@@ -47,7 +47,7 @@ async function getFullTimetableForTrip(tripId, companyId) {
                     tripStops.push({
                         stopId: sId,
                         // ★前回の修正（名前を正しく表示する）
-                        stopName: window.globalStopMap?.get(sId)?.name || `停留所(${sId})`,
+                        stopName: window.stopLookup?.[companyId]?.[sId]?.name || `停留所(${sId})`,
                         time: cols[aIdx] ? cols[aIdx].substring(0, 5) : "--:--",
                         sequence: parseInt(cols[sqIdx])
                     });
