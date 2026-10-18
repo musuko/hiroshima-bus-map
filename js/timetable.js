@@ -1,8 +1,10 @@
 /**
  * js/timetable.js
  * 役割: バス停クリック時の統合時刻表表示（ローカルGTFSから読み込み）
- * ★修正: trip_headsign が空の場合、対象バス停から見た「先の終点」を行先とする
- *        ループ/往復系統にも対応（対象バス停より後の最終バス停を特定）
+ * ★修正: trip_headsign が空の場合、ループ/往復系統に対応
+ *        - 対象バス停が前半（折り返し点前）なら折り返し点の直前のバス停を行先とする
+ *        - 対象バス停が後半（折り返し点後）なら最終バス停を行先とする
+ *        - 通常系統: 対象バス停より後の最終バス停を行先とする
  */
 
 window.TimetableManager = {
@@ -11,7 +13,7 @@ window.TimetableManager = {
         const container = document.querySelector(`.timetable-content-${safeId}`);
         if (!container) return;
 
-        container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合中...</div>";
+        container.innerHTML = "<div class='loading' style='font-size:12px; padding:10px;'>データを照合...</div>";
 
         let combinedTimes = [];
 
@@ -45,7 +47,7 @@ window.TimetableManager = {
 
     /**
      * ローカルの stop_times.txt を読み込んで時刻を抽出
-     * ★trip_headsign が空の場合、対象バス停から見た「先の終点」を行先とする
+     * ★trip_headsign が空の場合、ループ/往復系統に対応した行先判定
      */
     async _getStopTimes(company, stopId, tripInfoMap) {
         const results = [];
@@ -118,13 +120,17 @@ window.TimetableManager = {
                 }
             }
 
-            // tripId ごとに行をグループ化（高速化のため）
+            // tripId とに行をグループ化（sequence順にソート）
             const tripRowsMap = new Map();
             allRows.forEach(row => {
                 if (!tripRowsMap.has(row.tripId)) {
                     tripRowsMap.set(row.tripId, []);
                 }
                 tripRowsMap.get(row.tripId).push(row);
+            });
+
+            tripRowsMap.forEach(rows => {
+                rows.sort((a, b) => a.sequence - b.sequence);
             });
 
             // 対象バス停の時刻を抽出
@@ -139,17 +145,52 @@ window.TimetableManager = {
                 let destination = info.tripHeadsign;
                 if (!destination) {
                     const tripRows = tripRowsMap.get(row.tripId) || [];
-                    // 対象バス停より後のバス停（sequenceが大きい）を取得
                     const laterStops = tripRows.filter(r => r.sequence > row.sequence);
 
                     if (laterStops.length > 0) {
-                        // sequenceでソートして最後のバス停が「先の終点」
-                        laterStops.sort((a, b) => a.sequence - b.sequence);
-                        const lastStop = laterStops[laterStops.length - 1];
-                        const stopInfo = window.stopLookup[lastStop.stopId];
-                        destination = stopInfo ? stopInfo.name : "終点不明";
+                        // trip内で stop_id が重複するかチェック（ループ/往復判定）
+                        const stopIdOccurrences = new Map();
+                        tripRows.forEach(r => {
+                            stopIdOccurrences.set(r.stopId, (stopIdOccurrences.get(r.stopId) || 0) + 1);
+                        });
+                        const duplicateStopIds = Array.from(stopIdOccurrences.entries())
+                            .filter(([id, count]) => count >= 2)
+                            .map(([id]) => id);
+                        const hasDuplicates = duplicateStopIds.length > 0;
+
+                        if (hasDuplicates) {
+                            // ★ループ/往復系統の行先判定
+                            // 重複stop_idの2回目の出現位置（ループの折り返し後）を特定
+                            const turnaroundInfo = this._findTurnaroundPoint(tripRows, duplicateStopIds);
+
+                            if (turnaroundInfo) {
+                                const turnaroundSeq = turnaroundInfo.secondOccurrenceSeq;
+
+                                if (row.sequence < turnaroundSeq) {
+                                    // ★対象バス停が前半（折り返し点前）
+                                    // 折り返し点の直前のバス停を行先とする
+                                    const turnaroundStop = turnaroundInfo.stopBeforeSecondOccurrence;
+                                    const stopInfo = window.stopLookup[turnaroundStop.stopId];
+                                    destination = stopInfo ? stopInfo.name : "終点不明";
+                                } else {
+                                    // ★対象バス停が後半（折り返し点後）
+                                    // 最終バス停を行先とする
+                                    const lastStop = laterStops[laterStops.length - 1];
+                                    const stopInfo = window.stopLookup[lastStop.stopId];
+                                    destination = stopInfo ? stopInfo.name : "終点不明";
+                                }
+                            } else {
+                                const lastStop = laterStops[laterStops.length - 1];
+                                const stopInfo = window.stopLookup[lastStop.stopId];
+                                destination = stopInfo ? stopInfo.name : "終点不明";
+                            }
+                        } else {
+                            // ★通常の片道系統: 最終バス停を行先とする
+                            const lastStop = laterStops[laterStops.length - 1];
+                            const stopInfo = window.stopLookup[lastStop.stopId];
+                            destination = stopInfo ? stopInfo.name : "終点不明";
+                        }
                     } else {
-                        // 対象バス停が最終バス停の場合
                         destination = "終点";
                     }
                 }
@@ -168,6 +209,54 @@ window.TimetableManager = {
             console.error(`${company.name} stop_times読込エラー:`, err);
             return [];
         }
+    },
+
+    /**
+     * ループ/往復系統の折り返し点を特定
+     * @param {Array} tripRows - sequence順にソートされたtripの行リスト
+     * @param {Array} duplicateStopIds - 重複しているstop_idのリスト
+     * @returns {Object|null} - 折り返し点情報（secondOccurrenceSeq, stopBeforeSecondOccurrence）
+     */
+    _findTurnaroundPoint(tripRows, duplicateStopIds) {
+        if (!tripRows || tripRows.length === 0 || duplicateStopIds.length === 0) {
+            return null;
+        }
+
+        // 重複stop_idのうち、最初に2回目が出現する位置を特定
+        let earliestSecondOccurrence = -1;
+        let targetStopId = null;
+
+        for (const dupId of duplicateStopIds) {
+            let firstFound = false;
+            for (let i = 0; i < tripRows.length; i++) {
+                if (tripRows[i].stopId === dupId) {
+                    if (!firstFound) {
+                        firstFound = true;
+                    } else {
+                        // 2回目の出現
+                        if (earliestSecondOccurrence === -1 || i < earliestSecondOccurrence) {
+                            earliestSecondOccurrence = i;
+                            targetStopId = dupId;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (earliestSecondOccurrence <= 0) {
+            return null;
+        }
+
+        // 2回目の出現の直前のバス停が折り返し点
+        const stopBeforeSecondOccurrence = tripRows[earliestSecondOccurrence - 1];
+        const secondOccurrenceSeq = tripRows[earliestSecondOccurrence].sequence;
+
+        return {
+            secondOccurrenceSeq: secondOccurrenceSeq,
+            stopBeforeSecondOccurrence: stopBeforeSecondOccurrence,
+            turnaroundStopId: targetStopId
+        };
     },
 
     _renderCombinedTimetable(safeId, times) {
