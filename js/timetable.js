@@ -1,7 +1,7 @@
 /**
  * js/timetable.js
  * 役割: バス停クリック時の統合時刻表表示（ローカルGTFSから読み込み）
- * ★外部APIは使用せず、stop_times.txt を直接読み込む
+ * ★修正: trip_headsign が空の場合、stop_times.txt 内の最終バス停名を行先とする
  */
 
 window.TimetableManager = {
@@ -19,17 +19,14 @@ window.TimetableManager = {
             if (!company) continue;
 
             try {
-                // 【追跡ログ1】カレンダー判定
                 const activeServiceIds = await window.CalendarManager.getActiveServiceIds(company);
                 console.log(`🔍 ${company.name}: 有効なServiceId数 = ${activeServiceIds.length}`);
                 if (activeServiceIds.length === 0) continue;
 
-                // 【追跡ログ2】Trip情報取得
                 const tripInfoMap = await window.CalendarManager.getValidTripIds(company, activeServiceIds);
                 console.log(`🔍 ${company.name}: 今日の運行Trip数 = ${tripInfoMap.size}`);
                 if (tripInfoMap.size === 0) continue;
 
-                // 【追跡ログ3】★ローカル stop_times.txt から時刻を読み込み
                 const times = await this._getStopTimes(company, stopId, tripInfoMap);
                 console.log(`🔍 ${company.name}: ローカルstop_times該当 = ${times.length}件`);
 
@@ -39,7 +36,6 @@ window.TimetableManager = {
             }
         }
 
-        // 全体ソート
         combinedTimes.sort((a, b) => a.time.localeCompare(b.time));
         console.log(`🏁 最終的な表示件数: ${combinedTimes.length}件`);
 
@@ -47,21 +43,20 @@ window.TimetableManager = {
     },
 
     /**
-     * ★ローカルの stop_times.txt を直接読み込んで時刻を抽出
+     * ローカルの stop_times.txt を読み込んで時刻を抽出
+     * ★trip_headsign が空の場合、最終バス停名を行先とする
      */
     async _getStopTimes(company, stopId, tripInfoMap) {
         const results = [];
         const safeStopId = String(stopId).trim();
 
         try {
-            // まず通常の stop_times.txt を読み込む
             let res = await fetch(`${company.staticPath}stop_times.txt`);
             let files = [];
 
             if (res.ok) {
                 files = [await res.text()];
             } else {
-                // 分割ファイルを順番に読み込む
                 let fileIndex = 1;
                 while (true) {
                     const splitRes = await fetch(`${company.staticPath}stop_times_${fileIndex}.txt`);
@@ -76,7 +71,9 @@ window.TimetableManager = {
                 return results;
             }
 
-            let tIdx = -1, sIdx = -1, aIdx = -1, dIdx = -1;
+            // 全行をパースして配列に格納し、同時に各 trip の最バス停を特定
+            const allRows = [];
+            let tIdx = -1, sIdx = -1, aIdx = -1, dIdx = -1, sqIdx = -1;
 
             for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
                 const text = files[fileIndex];
@@ -84,7 +81,6 @@ window.TimetableManager = {
 
                 if (lines.length === 0) continue;
 
-                // ヘッダー行の解析
                 const firstLine = lines[0].toLowerCase();
                 const hasHeader = (fileIndex === 0) || firstLine.includes('trip_id');
 
@@ -94,10 +90,11 @@ window.TimetableManager = {
                     sIdx = head.indexOf('stop_id');
                     aIdx = head.indexOf('arrival_time');
                     dIdx = head.indexOf('departure_time');
+                    sqIdx = head.indexOf('stop_sequence');
                 }
 
                 if (tIdx === -1 || sIdx === -1) {
-                    console.warn(`${company.name}: ヘッダー解析失敗 (trip_id=${tIdx}, stop_id=${sIdx})`);
+                    console.warn(`${company.name}: ヘッダー解析失敗`);
                     continue;
                 }
 
@@ -106,28 +103,58 @@ window.TimetableManager = {
 
                 for (let i = startIndex; i < lines.length; i++) {
                     const line = lines[i];
-                    if (!line.includes(safeStopId)) continue;
+                    if (!line.trim()) continue;
 
                     const cols = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-                    if (cols.length <= Math.max(tIdx, sIdx, timeIdx)) continue;
-                    if (cols[sIdx] !== safeStopId) continue;
+                    if (cols.length <= Math.max(tIdx, sIdx)) continue;
 
                     const tripId = cols[tIdx];
-                    if (!tripInfoMap.has(tripId)) continue;
+                    const stopIdVal = cols[sIdx];
+                    const sequence = sqIdx >= 0 ? parseInt(cols[sqIdx]) || 0 : 0;
+                    const time = timeIdx >= 0 ? (cols[timeIdx] || "00:00:00").substring(0, 5) : "--:--";
 
-                    const info = tripInfoMap.get(tripId);
-                    const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
-                    const destination = info.tripHeadsign || "終点不明";
-
-                    results.push({
-                        time: (cols[timeIdx] || "00:00:00").substring(0, 5),
-                        routeShort: routeData.shortName,
-                        destination: destination,
-                        companyId: company.id,
-                        companyName: company.name
-                    });
+                    allRows.push({ tripId, stopId: stopIdVal, sequence, time });
                 }
             }
+
+            // 各 trip の最終バス停（最大 sequence）を特定
+            const tripLastStopMap = new Map();
+            allRows.forEach(row => {
+                if (!tripLastStopMap.has(row.tripId) || tripLastStopMap.get(row.tripId).sequence < row.sequence) {
+                    tripLastStopMap.set(row.tripId, { stopId: row.stopId, sequence: row.sequence });
+                }
+            });
+
+            // 対象バス停の時刻を抽出
+            const processedTrips = new Set(); // 同じ trip の重複を防ぐ（同一バス停に複数回停車する合）
+
+            allRows.forEach(row => {
+                if (row.stopId !== safeStopId) return;
+                if (!tripInfoMap.has(row.tripId)) return;
+
+                const info = tripInfoMap.get(row.tripId);
+                const routeData = (window.routeLookup[company.id] || {})[info.routeId] || { shortName: "", longName: "" };
+
+                // 行先の決定
+                let destination = info.tripHeadsign;
+                if (!destination) {
+                    const lastStop = tripLastStopMap.get(row.tripId);
+                    if (lastStop) {
+                        const stopInfo = window.stopLookup[lastStop.stopId];
+                        destination = stopInfo ? stopInfo.name : "終点不明";
+                    } else {
+                        destination = "終点不明";
+                    }
+                }
+
+                results.push({
+                    time: row.time,
+                    routeShort: routeData.shortName,
+                    destination: destination,
+                    companyId: company.id,
+                    companyName: company.name
+                });
+            });
 
             return results;
         } catch (err) {
