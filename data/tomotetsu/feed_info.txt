@@ -1,2 +1,2 @@
 "feed_publisher_name","feed_publisher_url","feed_lang","feed_start_date","feed_end_date","feed_version"
-"鞆鉄道","https://www.tomotetsu.co.jp/?page_id=1288","ja","20261001","20270118","20261001_20261017"
+"鞆鉄道","https://www.tomotetsu.co.jp/?page_id=1288","ja","20261001","20270126","20261001_20261024"
