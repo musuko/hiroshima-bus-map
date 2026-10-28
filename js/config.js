@@ -45,6 +45,7 @@ window.APP_CONFIG = {
         hatsukaichi: { color: '#ff00ff', textColor: '#ff00ff' },
         asahi: { color: '#fffafa', textColor: '#000000' },
         onomichi: { color: '#7fffd4', textColor: '#7fffd4' },
+        etajimabus: { color: '#ff6347', textColor: '#ff6347' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
 };
@@ -152,6 +153,14 @@ window.BUS_COMPANIES =[
         name: 'おのみちバス',
         staticPath: './data/onomichi/',
         realtimeUrl: `${window.API_BASE_URL}/api/get-all-realtime?id=53`,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'etajimabus',
+        name: '江田島バス',
+            staticPath: './data/etajimabus/',
+            realtimeUrl: ``,
         active: true,
         visible: true   // ★追加
     }
