@@ -45,7 +45,10 @@ window.APP_CONFIG = {
         hatsukaichi: { color: '#ff00ff', textColor: '#ff00ff' },
         asahi: { color: '#fffafa', textColor: '#000000' },
         onomichi: { color: '#7fffd4', textColor: '#7fffd4' },
-        etajimabus: { color: '#ff6347', textColor: '#ff6347' },
+        etajimabus: { color: '#ffffff', textColor: '#4169e1' },
+        chugokubus: { color: '#4169e1', textColor: '#4169e1' },
+        tomotetsu: { color: '#008000', textColor: '#008000' },
+        ikasabus: { color: '#dc143c', textColor: '#dc143c' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
 };
@@ -160,6 +163,30 @@ window.BUS_COMPANIES =[
         id: 'etajimabus',
         name: '江田島バス',
             staticPath: './data/etajimabus/',
+            realtimeUrl: ``,
+        active: true,
+        visible: true   // ★追加
+    },
+        {
+        id: 'chugokubus',
+        name: '中国バス',
+            staticPath: './data/chugokubus/',
+            realtimeUrl: ``,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'tomotetsu',
+        name: '鞆鉄道',
+            staticPath: './data/tomotetsu/',
+            realtimeUrl: ``,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'ikasabus',
+        name: '井笠バス',
+            staticPath: './data/ikasabus/',
             realtimeUrl: ``,
         active: true,
         visible: true   // ★追加
