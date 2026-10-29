@@ -84,3 +84,22 @@ html, body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+#company-modal .modal-content {
+    max-height: 80vh;          /* 画面の80%までの高さに制限 */
+    display: flex;
+    flex-direction: column;     /* 縦方向に並べる */
+    overflow: hidden;
+}
+
+#company-list {
+    overflow-y: auto;           /* 上下にスクロール可能 */
+    flex: 1;                    /* 残りの高さを全部使う */
+    min-height: 0;              /* flexアイテムでoverflowを効かせるため */
+    -webkit-overflow-scrolling: touch;  /* iOSでスムーズスクロール */
+}
+
+#btn-close-modal {
+    flex-shrink: 0;             /* ボタンは縮まない */
+    margin-top: 10px;
+}
