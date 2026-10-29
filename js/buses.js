@@ -35,6 +35,10 @@ async function updateBusPositions() {
     const activeIds = new Set();
 
     for (const company of activeCompanies) {
+        // ★追加：リアルタイムURLが空の会社はスキップ
+        if (!company.realtimeUrl || company.realtimeUrl.trim() === '') {
+            continue;
+        }        
         try {
             const separator = company.realtimeUrl.includes('?') ? '&' : '?';
             const response = await fetch(`${company.realtimeUrl}${separator}t=${Date.now()}`);
