@@ -28,7 +28,7 @@ window.APP_CONFIG = {
     // UIの設定
     UI: {
         TIMETABLE_MAX_HEIGHT: "250px", // 時刻表のスクロール高さ
-        BUS_REALTIME_INTERVAL: 15000   // バス位置更新の間隔
+        BUS_REALTIME_INTERVAL: 60000   // バス位置更新の間隔
     },
     // バス会社ごとのデザイン設定（共通バス停 shared を含む）
     COMPANIES: {
