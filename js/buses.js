@@ -36,7 +36,8 @@ async function updateBusPositions() {
 
     for (const company of activeCompanies) {
         try {
-            const response = await fetch(`${company.realtimeUrl}?t=${Date.now()}`);
+            const separator = company.realtimeUrl.includes('?') ? '&' : '?';
+            const response = await fetch(`${company.realtimeUrl}${separator}t=${Date.now()}`);
             if (!response.ok) continue;
 
             const data = await response.json();
