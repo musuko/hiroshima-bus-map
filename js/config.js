@@ -174,7 +174,7 @@ window.BUS_COMPANIES =[
             staticPath: './data/chugokubus/',
             realtimeUrl: ``,
         active: true,
-        visible: false  // ★追加
+        visible: true  // ★追加
     },
     {
         id: 'tomotetsu',
@@ -182,7 +182,7 @@ window.BUS_COMPANIES =[
             staticPath: './data/tomotetsu/',
             realtimeUrl: ``,
         active: true,
-        visible: false   // ★追加
+        visible: true   // ★追加
     },
     {
         id: 'ikasabus',
@@ -190,7 +190,7 @@ window.BUS_COMPANIES =[
             staticPath: './data/ikasabus/',
             realtimeUrl: ``,
         active: true,
-        visible: false  // ★追加
+        visible: true  // ★追加
     },
     {
         id: 'ohtake',
@@ -198,7 +198,7 @@ window.BUS_COMPANIES =[
             staticPath: './data/ohtake/',
             realtimeUrl: ``,
         active: true,
-        visible: false  // ★追加
+        visible: true  // ★追加
     }
 ];
 
