@@ -49,6 +49,7 @@ window.APP_CONFIG = {
         chugokubus: { color: '#4169e1', textColor: '#4169e1' },
         tomotetsu: { color: '#008000', textColor: '#008000' },
         ikasabus: { color: '#dc143c', textColor: '#dc143c' },
+        ohtake: { color: '#ffa500', textColor: '#ffa500' },
         shared:  { color: '#A020F0', textColor: '#800080' }
     }
 };
@@ -187,6 +188,14 @@ window.BUS_COMPANIES =[
         id: 'ikasabus',
         name: '井笠バス',
             staticPath: './data/ikasabus/',
+            realtimeUrl: ``,
+        active: true,
+        visible: true   // ★追加
+    },
+    {
+        id: 'ohtake',
+        name: '大竹市',
+            staticPath: './data/ohtake/',
             realtimeUrl: ``,
         active: true,
         visible: true   // ★追加
