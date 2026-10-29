@@ -166,7 +166,7 @@ window.BUS_COMPANIES =[
             staticPath: './data/etajimabus/',
             realtimeUrl: ``,
         active: true,
-        visible: false  // ★追加
+        visible: true  // ★追加
     },
         {
         id: 'chugokubus',
