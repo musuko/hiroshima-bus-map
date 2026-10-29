@@ -1,0 +1,2 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url
+2000020342114,大竹市,https://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/otake-kuritanisenbu,Asia/Tokyo,ja,0827-59-2111,

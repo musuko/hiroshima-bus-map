@@ -1,0 +1,4 @@
+feed_publisher_name,feed_publisher_url,feed_contact_url,feed_contact_email,feed_lang,feed_start_date,feed_end_date,feed_version
+大竹市,http://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/1457573471265.html,http://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/1457573471265.html,sonosujiya@gmail.com,ja,20260220,20270219,20180201_2018年02月01日（大竹・栗谷線） その筋屋 1.664
+大竹市,https://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/sakauesenbus.html,https://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/sakauesenbus.html,sonosujiya@gmail.com,ja,20250903,20260902,20250701_2025年07月01日（坂上線） その筋屋 1.664
+大竹市,https://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/koikoibus.html,https://www.city.otake.hiroshima.jp/soshiki/shiminseikatsu/jichishinko/gyomu/1/1/koikoibus.html,sonosujiya@gmail.com,ja,20250903,20260902,20250414_2025年04月14日（こいこいバス 新） その筋屋 1.664
