@@ -1,2 +1,2 @@
 "feed_publisher_name","feed_publisher_url","feed_lang","feed_start_date","feed_end_date","feed_version"
-"中国バス","https://www.chugokubus.jp/routebus","ja","20261025","20270130","20261025_20261029"
+"中国バス","https://www.chugokubus.jp/routebus","ja","20261102","20270210","20261102_20261109"
